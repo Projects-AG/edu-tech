@@ -1,0 +1,28 @@
+# Bench / Frappe
+development/frappe-bench/
+*.pyc
+__pycache__/
+*.egg-info/
+.env
+.venv/
+env/
+
+# Node
+node_modules/
+.yarn/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker volumes (local)
+mariadb-data/
+
+# frappe-docker clone (reference only)
+frappe-docker/

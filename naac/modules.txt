@@ -1,0 +1,8 @@
+NAAC Core
+Criterion 1
+Criterion 2
+Criterion 3
+Criterion 4
+Criterion 5
+Criterion 6
+Criterion 7
