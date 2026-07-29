@@ -16,7 +16,7 @@ if [ ! -d frappe-bench ]; then
   bench init frappe-bench --frappe-branch version-15
   cd frappe-bench
   bench get-app --branch version-15 erpnext
-  bench get-app --branch version-15 education
+  bench get-app --branch version-15.2 education
 else
   cd frappe-bench
 fi

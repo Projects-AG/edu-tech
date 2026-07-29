@@ -31,6 +31,12 @@ else
   cd "${BENCH_DIR}"
 fi
 
+# Install education app if missing (bench init may have failed mid-way)
+if [ ! -d "${BENCH_DIR}/apps/education" ]; then
+  echo "==> Installing education app..."
+  bench get-app --branch version-15.2 education
+fi
+
 # Link custom NAAC app into bench
 if [ ! -e "${BENCH_DIR}/apps/naac" ]; then
   echo "==> Linking NAAC custom app..."
@@ -57,6 +63,14 @@ fi
 
 bench --site development.localhost set-config developer_mode 1
 bench --site development.localhost migrate
+
+if [ ! -e "${BENCH_DIR}/sites/assets/naac" ]; then
+	echo "==> Linking NAAC portal assets (first run)..."
+	bash "${SCRIPT_DIR}/portal-build.sh"
+fi
+
+echo "==> Syncing NAAC desk workspace..."
+bench --site development.localhost execute naac.naac_core.setup_workspace.sync
 
 echo ""
 echo "==> Setup complete!"
