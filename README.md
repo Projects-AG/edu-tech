@@ -4,6 +4,12 @@ Phase 1 (Foundation) implementation: auth, scoped RBAC, institutions,
 departments, academic years, file uploads, audit logs, and a basic
 dashboard summary endpoint.
 
+## Documentation & Architecture
+
+- [Development diagram](https://apliaglobal77-my.sharepoint.com/:i:/g/personal/aniket_apliaglobal_com/IQDOrVPz0-71RoNiOlCeTbAJAboWP8zyGnxZZDVTomXw6Ds?e=oHfWiC)
+- [NAAC modules](https://apliaglobal77-my.sharepoint.com/:t:/g/personal/aniket_apliaglobal_com/IQDrUgvd83AZQI0gcZwpixq1Afu51VrkT5X5zu0Zqxec-bw?e=RMfUqu)
+- [Edu-tech architecture](https://apliaglobal77-my.sharepoint.com/:i:/g/personal/aniket_apliaglobal_com/IQCeafdTgGNnQKnU_BjJRB4CAcqQTEjY6TCKljgUkchTT8Y?e=hhcjre)
+
 ## Setup
 
 ```bash
