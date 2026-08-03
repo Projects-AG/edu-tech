@@ -4,7 +4,6 @@ from datetime import datetime
 
 from sqlalchemy import String, Boolean, DateTime, ForeignKey, Integer, JSON, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
 
 from app.db.session import Base
 
@@ -29,10 +28,15 @@ class ScopeType(str, enum.Enum):
     CRITERION = "CRITERION"
 
 
+UUID_STR = String(36)
+ROLE_ENUM = Enum(RoleName, native_enum=False, length=50)
+SCOPE_ENUM = Enum(ScopeType, native_enum=False, length=50)
+
+
 class Institution(Base):
     __tablename__ = "institutions"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    id: Mapped[str] = mapped_column(UUID_STR, primary_key=True, default=gen_uuid)
     name: Mapped[str] = mapped_column(String, nullable=False)
     naac_id: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
     type: Mapped[str] = mapped_column(String, nullable=False)
@@ -46,7 +50,7 @@ class Institution(Base):
 class Department(Base):
     __tablename__ = "departments"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    id: Mapped[str] = mapped_column(UUID_STR, primary_key=True, default=gen_uuid)
     institution_id: Mapped[str] = mapped_column(ForeignKey("institutions.id"), nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     code: Mapped[str] = mapped_column(String, nullable=False)
@@ -58,7 +62,7 @@ class Department(Base):
 class AcademicYear(Base):
     __tablename__ = "academic_years"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    id: Mapped[str] = mapped_column(UUID_STR, primary_key=True, default=gen_uuid)
     institution_id: Mapped[str] = mapped_column(ForeignKey("institutions.id"), nullable=False)
     label: Mapped[str] = mapped_column(String, nullable=False)  # e.g. "2025-2026"
     start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -71,7 +75,7 @@ class AcademicYear(Base):
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    id: Mapped[str] = mapped_column(UUID_STR, primary_key=True, default=gen_uuid)
     institution_id: Mapped[str] = mapped_column(ForeignKey("institutions.id"), nullable=False)
     department_id: Mapped[str | None] = mapped_column(ForeignKey("departments.id"), nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
@@ -91,10 +95,10 @@ class User(Base):
 class RoleAssignment(Base):
     __tablename__ = "role_assignments"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    id: Mapped[str] = mapped_column(UUID_STR, primary_key=True, default=gen_uuid)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
-    role: Mapped[RoleName] = mapped_column(Enum(RoleName), nullable=False)
-    scope_type: Mapped[ScopeType] = mapped_column(Enum(ScopeType), nullable=False)
+    role: Mapped[RoleName] = mapped_column(ROLE_ENUM, nullable=False)
+    scope_type: Mapped[ScopeType] = mapped_column(SCOPE_ENUM, nullable=False)
     department_id: Mapped[str | None] = mapped_column(ForeignKey("departments.id"), nullable=True)
     # criterion_id added in Phase 2 migration once Criterion model exists
 
@@ -104,7 +108,7 @@ class RoleAssignment(Base):
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    id: Mapped[str] = mapped_column(UUID_STR, primary_key=True, default=gen_uuid)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
     token_hash: Mapped[str] = mapped_column(String, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -115,7 +119,7 @@ class RefreshToken(Base):
 class FileUpload(Base):
     __tablename__ = "file_uploads"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    id: Mapped[str] = mapped_column(UUID_STR, primary_key=True, default=gen_uuid)
     institution_id: Mapped[str] = mapped_column(ForeignKey("institutions.id"), nullable=False)
     uploaded_by_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
     file_name: Mapped[str] = mapped_column(String, nullable=False)
@@ -129,7 +133,7 @@ class FileUpload(Base):
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    id: Mapped[str] = mapped_column(UUID_STR, primary_key=True, default=gen_uuid)
     institution_id: Mapped[str] = mapped_column(ForeignKey("institutions.id"), nullable=False)
     actor_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     action: Mapped[str] = mapped_column(String, nullable=False)  # e.g. "USER_LOGIN"

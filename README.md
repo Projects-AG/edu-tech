@@ -13,7 +13,8 @@ pip install -r requirements.txt
 
 cp .env.example .env               # then edit DATABASE_URL / secrets
 
-# Create the Postgres database first (e.g. `createdb naac_platform`)
+# Create the MySQL database first, e.g.:
+#   mysql -u root -p -e "CREATE DATABASE naac_platform CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 alembic revision --autogenerate -m "init"
 alembic upgrade head
 
