@@ -9,6 +9,7 @@ dashboard summary endpoint.
 - [Development diagram](https://apliaglobal77-my.sharepoint.com/:i:/g/personal/aniket_apliaglobal_com/IQDOrVPz0-71RoNiOlCeTbAJAboWP8zyGnxZZDVTomXw6Ds?e=oHfWiC)
 - [NAAC modules](https://apliaglobal77-my.sharepoint.com/:t:/g/personal/aniket_apliaglobal_com/IQDrUgvd83AZQI0gcZwpixq1Afu51VrkT5X5zu0Zqxec-bw?e=RMfUqu)
 - [Edu-tech architecture](https://apliaglobal77-my.sharepoint.com/:i:/g/personal/aniket_apliaglobal_com/IQCeafdTgGNnQKnU_BjJRB4CAcqQTEjY6TCKljgUkchTT8Y?e=hhcjre)
+- [ER diagram (DrawSQL)](https://drawsql.app/draw?t=4c1c474e-e797-4bef-9080-03840901bf19&view=1)
 
 ## Setup
 
