@@ -22,6 +22,7 @@ import UsersPage from './pages/users/UsersPage';
 import DepartmentsPage from './pages/departments/DepartmentsPage';
 import AuditPage from './pages/audit/AuditPage';
 import SettingsPage from './pages/settings/SettingsPage';
+import SubmissionsPage from './pages/submissions/SubmissionsPage';
 import { APP_HOME, ROLES } from './utils/roles';
 
 export default function App() {
@@ -61,6 +62,10 @@ export default function App() {
                 <Route path="tasks" element={<TasksPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
+
+                <Route element={<RoleRoute allowedRoles={[ROLES.IQAC_COORDINATOR, ROLES.ADMIN]} />}>
+                  <Route path="submissions" element={<SubmissionsPage />} />
+                </Route>
 
                 <Route
                   element={

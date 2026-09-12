@@ -45,6 +45,8 @@ def allowed_roles_for_actor(actor_roles: set[RoleName]) -> set[RoleName]:
 def default_scope_for_role(role: RoleName, requested: ScopeType | None) -> ScopeType:
     if role in DEPARTMENT_SCOPED_ROLES:
         return ScopeType.DEPARTMENT
+    if role == RoleName.CRITERION_INCHARGE and requested == ScopeType.CRITERION:
+        return ScopeType.CRITERION
     if role in INSTITUTION_SCOPED_ROLES:
         return ScopeType.INSTITUTION
     return requested or ScopeType.INSTITUTION

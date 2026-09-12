@@ -50,12 +50,17 @@ def assign_role(
     role: RoleName,
     scope_type: ScopeType | None = None,
     department_id: str | None = None,
+    criterion_id: str | None = None,
 ) -> RoleAssignment:
+    from app.models.models import AccreditationCycle, Criterion
+
     resolved_scope = default_scope_for_role(role, scope_type)
 
     if resolved_scope == ScopeType.INSTITUTION:
         department_id = None
+        criterion_id = None
     elif resolved_scope == ScopeType.DEPARTMENT:
+        criterion_id = None
         if not department_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -63,10 +68,19 @@ def assign_role(
             )
         _require_department(db, department_id, user.institution_id)
     elif resolved_scope == ScopeType.CRITERION:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Criterion-scoped assignments are not available yet",
-        )
+        department_id = None
+        if not criterion_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="criterion_id is required for criterion-scoped roles",
+            )
+        criterion = db.get(Criterion, criterion_id)
+        cycle = db.get(AccreditationCycle, criterion.cycle_id) if criterion else None
+        if not criterion or not cycle or cycle.institution_id != user.institution_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Criterion not found in this institution",
+            )
 
     existing = (
         db.query(RoleAssignment)
@@ -75,6 +89,7 @@ def assign_role(
             RoleAssignment.role == role,
             RoleAssignment.scope_type == resolved_scope,
             RoleAssignment.department_id == department_id,
+            RoleAssignment.criterion_id == criterion_id,
         )
         .first()
     )
@@ -86,6 +101,7 @@ def assign_role(
         role=role,
         scope_type=resolved_scope,
         department_id=department_id,
+        criterion_id=criterion_id,
     )
     db.add(assignment)
     return assignment
@@ -176,6 +192,7 @@ def add_role_to_user(
     role: RoleName,
     scope_type: ScopeType | None,
     department_id: str | None,
+    criterion_id: str | None = None,
 ) -> RoleAssignment:
     target = db.get(User, target_user_id)
     if not target:
@@ -188,7 +205,14 @@ def add_role_to_user(
     if role not in allowed_roles_for_actor(actor_roles):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot assign this role")
 
-    assignment = assign_role(db, target, role, scope_type=scope_type, department_id=department_id)
+    assignment = assign_role(
+        db,
+        target,
+        role,
+        scope_type=scope_type,
+        department_id=department_id,
+        criterion_id=criterion_id,
+    )
     db.add(
         AuditLog(
             institution_id=target.institution_id,

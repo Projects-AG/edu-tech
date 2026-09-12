@@ -1,5 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as authApi from '../api/auth';
+import {
+  buildMockLoginResponse,
+  findMockUser,
+  isMockAuthEnabled,
+  isMockToken,
+} from '../config/mockAuth';
 import { getPrimaryRole, normalizeRoles } from '../utils/roles';
 
 const AuthContext = createContext(null);
@@ -56,6 +62,21 @@ export function AuthProvider({ children }) {
       return;
     }
 
+    // Mock sessions: restore from localStorage, skip /auth/me
+    if (isMockAuthEnabled() && isMockToken(token)) {
+      const storedUser = readStoredUser();
+      const storedRoles = readStoredRoles();
+      if (storedUser && storedRoles.length) {
+        setUser(storedUser);
+        setRoles(storedRoles);
+        setActiveRole(getPrimaryRole(storedRoles));
+      } else {
+        clearSession();
+      }
+      setBootstrapping(false);
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       try {
@@ -87,6 +108,21 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(
     async (email, password) => {
+      if (isMockAuthEnabled()) {
+        const entry = findMockUser(email, password);
+        if (!entry) {
+          const err = new Error('Invalid email or password');
+          err.response = { data: { detail: 'Invalid email or password' } };
+          throw err;
+        }
+        const data = buildMockLoginResponse(entry);
+        persistSession(data.user, data.roles, {
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
+        return data;
+      }
+
       const data = await authApi.login(email, password);
       persistSession(data.user, data.roles, {
         access_token: data.access_token,
@@ -103,8 +139,9 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     const refreshToken = localStorage.getItem('refresh_token');
+    const accessToken = localStorage.getItem('access_token');
     try {
-      if (localStorage.getItem('access_token')) {
+      if (accessToken && !isMockToken(accessToken)) {
         await authApi.logout(refreshToken);
       }
     } catch {

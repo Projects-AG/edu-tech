@@ -38,6 +38,7 @@ export default function AppShell() {
   const drawer = (
     <SidebarNav
       roles={roles}
+      activeRole={activeRole}
       onNavigate={() => {
         if (isMobile) setMobileOpen(false);
       }}

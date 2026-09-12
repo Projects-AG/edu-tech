@@ -98,6 +98,7 @@ def assign_user_role(
         role=payload.role,
         scope_type=payload.scope_type,
         department_id=payload.department_id,
+        criterion_id=payload.criterion_id,
     )
 
 

@@ -1,0 +1,344 @@
+{
+  "meta": {
+    "baseUrl": "http://127.0.0.1:8000",
+    "apiPrefix": "/api/v1",
+    "authHeader": "Authorization: Bearer {{access_token}}",
+    "seedLogins": {
+      "admin": {
+        "email": "admin@example.com",
+        "password": "ChangeMe123!"
+      },
+      "iqac_coordinator": {
+        "email": "iqac@example.com",
+        "password": "ChangeMe123!"
+      }
+    },
+    "notes": [
+      "Run scripts/seed_admin.py then scripts/seed_naac_cycle.py before testing.",
+      "Replace {{cycle_id}}, {{department_id}}, {{criterion_id}}, {{metric_id}}, {{file_upload_id}}, {{evidence_id}}, {{submission_id}}, {{institution_id}} with values from GET responses.",
+      "EvidenceCreate uses metric_id + file_upload_id (from OpenAPI).",
+      "CorrectionRequest field is note (min length 3)."
+    ]
+  },
+  "requests": [
+    {
+      "order": 1,
+      "name": "Login as IQAC Coordinator",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "auth": false,
+      "body": {
+        "email": "iqac@example.com",
+        "password": "ChangeMe123!"
+      }
+    },
+    {
+      "order": 2,
+      "name": "Get current user (me)",
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "auth": true
+    },
+    {
+      "order": 3,
+      "name": "Coordinator dashboard",
+      "method": "GET",
+      "path": "/api/v1/coordinator/dashboard",
+      "query": { "cycle_id": "{{cycle_id}}" },
+      "auth": true
+    },
+    {
+      "order": 4,
+      "name": "Coordinator departments board",
+      "method": "GET",
+      "path": "/api/v1/coordinator/departments",
+      "query": { "cycle_id": "{{cycle_id}}" },
+      "auth": true
+    },
+    {
+      "order": 5,
+      "name": "Department criteria breakdown",
+      "method": "GET",
+      "path": "/api/v1/coordinator/departments/{{department_id}}/criteria-breakdown",
+      "query": { "cycle_id": "{{cycle_id}}" },
+      "auth": true
+    },
+    {
+      "order": 6,
+      "name": "List criteria cards",
+      "method": "GET",
+      "path": "/api/v1/criteria",
+      "query": { "cycle_id": "{{cycle_id}}" },
+      "auth": true
+    },
+    {
+      "order": 7,
+      "name": "Criterion detail",
+      "method": "GET",
+      "path": "/api/v1/criteria/{{criterion_id}}",
+      "auth": true
+    },
+    {
+      "order": 8,
+      "name": "List departments by institution",
+      "method": "GET",
+      "path": "/api/v1/departments/institution/{{institution_id}}",
+      "auth": true
+    },
+    {
+      "order": 9,
+      "name": "Create department",
+      "method": "POST",
+      "path": "/api/v1/departments",
+      "auth": true,
+      "body": {
+        "institution_id": "{{institution_id}}",
+        "name": "Electronics & Telecommunication",
+        "code": "EXTC"
+      }
+    },
+    {
+      "order": 10,
+      "name": "Upload evidence file",
+      "method": "POST",
+      "path": "/api/v1/files/upload",
+      "auth": true,
+      "bodyType": "multipart/form-data",
+      "body": {
+        "upload": "<select a PDF file in Postman form-data>"
+      }
+    },
+    {
+      "order": 11,
+      "name": "Create evidence record",
+      "method": "POST",
+      "path": "/api/v1/evidence",
+      "auth": true,
+      "body": {
+        "cycle_id": "{{cycle_id}}",
+        "metric_id": "{{metric_id}}",
+        "department_id": "{{department_id}}",
+        "file_upload_id": "{{file_upload_id}}",
+        "title": "Academic Calendar 2025-26",
+        "unit": "Academics",
+        "notes": "Signed copy for Criterion 1"
+      }
+    },
+    {
+      "order": 12,
+      "name": "List evidence",
+      "method": "GET",
+      "path": "/api/v1/evidence",
+      "query": {
+        "cycle_id": "{{cycle_id}}",
+        "status": null,
+        "criterion_id": null,
+        "department_id": "{{department_id}}",
+        "q": "Calendar"
+      },
+      "auth": true
+    },
+    {
+      "order": 13,
+      "name": "Evidence stats",
+      "method": "GET",
+      "path": "/api/v1/evidence/stats",
+      "query": { "cycle_id": "{{cycle_id}}" },
+      "auth": true
+    },
+    {
+      "order": 14,
+      "name": "Verify evidence",
+      "method": "PATCH",
+      "path": "/api/v1/evidence/{{evidence_id}}/status",
+      "auth": true,
+      "body": {
+        "status": "VERIFIED",
+        "notes": "Checked against BoS minutes"
+      }
+    },
+    {
+      "order": 15,
+      "name": "Send evidence for correction",
+      "method": "PATCH",
+      "path": "/api/v1/evidence/{{evidence_id}}/status",
+      "auth": true,
+      "body": {
+        "status": "NEEDS_CORRECTION",
+        "notes": "Missing signed attendance sheet"
+      }
+    },
+    {
+      "order": 16,
+      "name": "Create submission draft",
+      "method": "POST",
+      "path": "/api/v1/submissions",
+      "auth": true,
+      "body": {
+        "cycle_id": "{{cycle_id}}",
+        "criterion_id": "{{criterion_id}}",
+        "department_id": "{{department_id}}",
+        "title": "Criterion 1 Evidence Submission — Computer Engineering",
+        "evidence_ids": ["{{evidence_id}}"],
+        "assigned_to_id": null
+      }
+    },
+    {
+      "order": 17,
+      "name": "Submit submission for review",
+      "method": "POST",
+      "path": "/api/v1/submissions/{{submission_id}}/submit",
+      "auth": true,
+      "body": null
+    },
+    {
+      "order": 18,
+      "name": "List submissions",
+      "method": "GET",
+      "path": "/api/v1/submissions",
+      "query": { "cycle_id": "{{cycle_id}}", "status": null, "q": null },
+      "auth": true
+    },
+    {
+      "order": 19,
+      "name": "Submission stats",
+      "method": "GET",
+      "path": "/api/v1/submissions/stats",
+      "query": { "cycle_id": "{{cycle_id}}" },
+      "auth": true
+    },
+    {
+      "order": 20,
+      "name": "Get submission detail",
+      "method": "GET",
+      "path": "/api/v1/submissions/{{submission_id}}",
+      "auth": true
+    },
+    {
+      "order": 21,
+      "name": "Review queue",
+      "method": "GET",
+      "path": "/api/v1/reviews/queue",
+      "query": { "cycle_id": "{{cycle_id}}", "status": null, "q": null },
+      "auth": true
+    },
+    {
+      "order": 22,
+      "name": "Review stats",
+      "method": "GET",
+      "path": "/api/v1/reviews/stats",
+      "query": { "cycle_id": "{{cycle_id}}" },
+      "auth": true
+    },
+    {
+      "order": 23,
+      "name": "Start review",
+      "method": "POST",
+      "path": "/api/v1/reviews/{{submission_id}}/start",
+      "auth": true,
+      "body": null
+    },
+    {
+      "order": 24,
+      "name": "Request correction on submission",
+      "method": "POST",
+      "path": "/api/v1/submissions/{{submission_id}}/request-correction",
+      "auth": true,
+      "body": {
+        "note": "Incomplete student progression data. Attach semester-wise sheets for 2024-25."
+      }
+    },
+    {
+      "order": 25,
+      "name": "Approve submission",
+      "method": "POST",
+      "path": "/api/v1/submissions/{{submission_id}}/approve",
+      "auth": true,
+      "body": null
+    },
+    {
+      "order": 26,
+      "name": "Create department contributor user",
+      "method": "POST",
+      "path": "/api/v1/auth/users",
+      "auth": true,
+      "body": {
+        "institution_id": "{{institution_id}}",
+        "department_id": "{{department_id}}",
+        "name": "Prof. A. Deshmukh",
+        "email": "deshmukh.ce@example.com",
+        "password": "ChangeMe123!",
+        "role": "DEPARTMENT_CONTRIBUTOR",
+        "scope_type": "DEPARTMENT"
+      }
+    },
+    {
+      "order": 27,
+      "name": "Assign extra role to user",
+      "method": "POST",
+      "path": "/api/v1/auth/users/{{user_id}}/roles",
+      "auth": true,
+      "body": {
+        "role": "FACULTY",
+        "scope_type": "DEPARTMENT",
+        "department_id": "{{department_id}}",
+        "criterion_id": null
+      }
+    },
+    {
+      "order": 28,
+      "name": "List institution users",
+      "method": "GET",
+      "path": "/api/v1/auth/users",
+      "auth": true
+    },
+    {
+      "order": 29,
+      "name": "Foundation dashboard summary",
+      "method": "GET",
+      "path": "/api/v1/dashboard/summary",
+      "auth": true
+    },
+    {
+      "order": 30,
+      "name": "Audit logs",
+      "method": "GET",
+      "path": "/api/v1/audit-logs/institution/{{institution_id}}",
+      "auth": true
+    },
+    {
+      "order": 31,
+      "name": "Refresh access token",
+      "method": "POST",
+      "path": "/api/v1/auth/refresh",
+      "auth": false,
+      "body": {
+        "refresh_token": "{{refresh_token}}"
+      }
+    },
+    {
+      "order": 32,
+      "name": "Logout",
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "auth": true,
+      "body": {
+        "refresh_token": "{{refresh_token}}"
+      }
+    }
+  ],
+  "enums": {
+    "EvidenceStatus": ["PENDING_REVIEW", "VERIFIED", "NEEDS_CORRECTION"],
+    "SubmissionStatus": ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "NEEDS_CORRECTION", "APPROVED"],
+    "RoleName": [
+      "ADMIN",
+      "IQAC_COORDINATOR",
+      "CRITERION_INCHARGE",
+      "DEPARTMENT_CONTRIBUTOR",
+      "FACULTY",
+      "REVIEWER",
+      "FINAL_APPROVER"
+    ],
+    "ScopeType": ["INSTITUTION", "DEPARTMENT", "CRITERION"]
+  }
+}

@@ -17,8 +17,17 @@ import PageHeader from '../../components/common/PageHeader';
 import ModuleCard from '../../components/common/ModuleCard';
 import StatusChip from '../../components/common/StatusChip';
 import { EVIDENCE_ITEMS } from '../../data/mock/modules';
+import { useAuth } from '../../context/AuthContext';
+import { ROLES } from '../../utils/roles';
+import CoordinatorDocumentsPage from '../coordinator/CoordinatorDocumentsPage';
 
 export default function EvidenceLibraryPage() {
+  const { activeRole } = useAuth();
+  if (activeRole === ROLES.IQAC_COORDINATOR) return <CoordinatorDocumentsPage />;
+  return <DefaultEvidenceLibrary />;
+}
+
+function DefaultEvidenceLibrary() {
   const [status, setStatus] = useState('all');
   const [query, setQuery] = useState('');
 

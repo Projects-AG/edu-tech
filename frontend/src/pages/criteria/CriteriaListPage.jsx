@@ -17,8 +17,17 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader';
 import ModuleCard from '../../components/common/ModuleCard';
 import { CRITERIA } from '../../data/mock/criteria';
+import { useAuth } from '../../context/AuthContext';
+import { ROLES } from '../../utils/roles';
+import CoordinatorCriteriaPage from '../coordinator/CoordinatorCriteriaPage';
 
 export default function CriteriaListPage() {
+  const { activeRole } = useAuth();
+  if (activeRole === ROLES.IQAC_COORDINATOR) return <CoordinatorCriteriaPage />;
+  return <DefaultCriteriaList />;
+}
+
+function DefaultCriteriaList() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');

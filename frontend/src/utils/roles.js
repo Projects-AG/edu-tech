@@ -33,7 +33,7 @@ export const ROLE_META = {
     tagline: 'Institution-wide control and user provisioning',
   },
   [ROLES.IQAC_COORDINATOR]: {
-    label: 'IQAC Coordinator',
+    label: 'NAAC Coordinator (IQAC)',
     shortLabel: 'IQAC',
     accent: '#0EA5E9',
     tagline: 'Coordinate accreditation across all criteria',

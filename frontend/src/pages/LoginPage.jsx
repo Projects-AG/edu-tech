@@ -29,7 +29,7 @@ function getErrorMessage(error) {
 export default function LoginPage() {
   const { login, isAuthenticated, roles, bootstrapping } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@example.com');
+  const [email, setEmail] = useState('iqac@example.com');
   const [password, setPassword] = useState('ChangeMe123!');
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
@@ -174,6 +174,9 @@ export default function LoginPage() {
           <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>
             Use your institutional email. Access is granted by role assignment.
           </Typography>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Demo (seed data): iqac@example.com / ChangeMe123!
+          </Alert>
 
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>

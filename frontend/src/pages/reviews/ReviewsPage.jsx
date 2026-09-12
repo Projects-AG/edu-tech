@@ -21,9 +21,12 @@ import StatusChip from '../../components/common/StatusChip';
 import { REVIEW_QUEUE } from '../../data/mock/modules';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../utils/roles';
+import CoordinatorReviewsPage from '../coordinator/CoordinatorReviewsPage';
 
 export default function ReviewsPage() {
   const { roles, activeRole } = useAuth();
+  if (activeRole === ROLES.IQAC_COORDINATOR) return <CoordinatorReviewsPage />;
+
   const isFinal = roles.includes(ROLES.FINAL_APPROVER) || activeRole === ROLES.FINAL_APPROVER;
   const [queue, setQueue] = useState(REVIEW_QUEUE);
   const [active, setActive] = useState(null);

@@ -20,9 +20,12 @@ import { createDepartment, listDepartments } from '../../api/platform';
 import { DEPT_PROGRESS } from '../../data/mock/modules';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../utils/roles';
+import CoordinatorDepartmentsPage from '../coordinator/CoordinatorDepartmentsPage';
 
 export default function DepartmentsPage() {
-  const { user, roles } = useAuth();
+  const { user, roles, activeRole } = useAuth();
+  if (activeRole === ROLES.IQAC_COORDINATOR) return <CoordinatorDepartmentsPage />;
+
   const canCreate = roles.includes(ROLES.ADMIN) || roles.includes(ROLES.IQAC_COORDINATOR);
   const [apiDepts, setApiDepts] = useState([]);
   const [error, setError] = useState('');

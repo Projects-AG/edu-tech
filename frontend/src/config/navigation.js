@@ -2,7 +2,10 @@ import { ROLES } from '../utils/roles';
 
 const ALL = Object.values(ROLES);
 
-/** Central navigation — role filters control sidebar visibility */
+/**
+ * Default navigation for most roles.
+ * IQAC Coordinator uses COORDINATOR_NAV instead (see getNavItems).
+ */
 export const NAV_ITEMS = [
   {
     id: 'dashboard',
@@ -114,12 +117,66 @@ export const NAV_ITEMS = [
   },
 ];
 
+/** Sidebar items matching NAAC Coordinator mockups */
+export const COORDINATOR_NAV = [
+  { id: 'dashboard', label: 'Dashboard', path: '/app/dashboard', icon: 'Dashboard' },
+  { id: 'criteria', label: 'NAAC Criteria', path: '/app/criteria', icon: 'FactCheck', badge: '7' },
+  { id: 'departments', label: 'Departments', path: '/app/departments', icon: 'Apartment', badge: '12' },
+  {
+    id: 'evidence',
+    label: 'Documents & Evidence',
+    path: '/app/evidence',
+    icon: 'FolderOpen',
+    badge: '248',
+  },
+  {
+    id: 'submissions',
+    label: 'Submissions',
+    path: '/app/submissions',
+    icon: 'Inbox',
+    badge: '24 new',
+    badgeTone: 'success',
+  },
+  {
+    id: 'reviews',
+    label: 'Review & Approval',
+    path: '/app/reviews',
+    icon: 'RateReview',
+    badge: '18',
+  },
+  {
+    id: 'reports',
+    label: 'Reports & Analytics',
+    path: '/app/reports',
+    icon: 'Assessment',
+  },
+  {
+    id: 'notifications',
+    label: 'Notifications',
+    path: '/app/notifications',
+    icon: 'Notifications',
+    showDot: true,
+  },
+  { id: 'profile', label: 'Profile', path: '/app/settings', icon: 'Person' },
+];
+
+export const COORDINATOR_CYCLE = {
+  title: 'CYCLE 3',
+  year: '2026–27',
+  status: 'SSR In Progress',
+};
+
 export function getNavForRoles(userRoles = []) {
   const set = new Set(userRoles);
   return NAV_ITEMS.filter((item) => item.roles.some((r) => set.has(r)));
 }
 
-/** Role-filtered Action Center tiles for dashboard */
+/** Prefer activeRole so coordinator gets a dedicated sidebar. */
+export function getNavItems(userRoles = [], activeRole = null) {
+  if (activeRole === ROLES.IQAC_COORDINATOR) return COORDINATOR_NAV;
+  return getNavForRoles(userRoles);
+}
+
 export const ACTION_CENTER = [
   {
     id: 'upload',

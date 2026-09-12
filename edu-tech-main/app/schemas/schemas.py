@@ -117,6 +117,7 @@ class RoleAssignmentCreate(BaseModel):
     role: RoleName
     scope_type: ScopeType
     department_id: str | None = None
+    criterion_id: str | None = None
 
 
 class RoleAssignmentOut(BaseModel):
@@ -124,6 +125,7 @@ class RoleAssignmentOut(BaseModel):
     role: RoleName
     scope_type: ScopeType
     department_id: str | None
+    criterion_id: str | None = None
 
     class Config:
         from_attributes = True
