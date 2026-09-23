@@ -1,74 +1,53 @@
-// import api from "./api";
-// import { MOCK_CRITERIA } from "./mockData";
-
-// export const criteriaService = {
-//   getCriteria: async () => {
-//     try {
-//       const response = await api.get("/criteria");
-//       return response.data;
-//     } catch {
-//       return MOCK_CRITERIA;
-//     }
-//   },
-// };
-
-// export default criteriaService;
-
-
 import api from "./api";
-import { MOCK_CRITERIA } from "./mockData";
 
-export const criteriaService = {
-  // Get all NAAC criteria
+const criteriaService = {
+  // ==========================================
+  // GET ALL CRITERIA
+  // ==========================================
   getCriteria: async () => {
-    try {
-      const response = await api.get("/criteria");
-      return response.data;
-    } catch (error) {
-      console.error("Failed to fetch criteria:", error);
-      return MOCK_CRITERIA;
-    }
+    const response = await api.get("/criteria");
+    return response.data;
   },
 
-  // Get all sections
+  // ==========================================
+  // GET SINGLE CRITERION
+  // ==========================================
+  getCriterion: async (criterionId) => {
+    const response = await api.get(`/criteria/${criterionId}`);
+    return response.data;
+  },
+
+  // ==========================================
+  // GET SECTIONS
+  // Optional criterionId filter
+  // ==========================================
   getSections: async (criterionId) => {
-    try {
-      const response = await api.get("/sections", {
-        params: {
-          criterion_id: criterionId,
-        },
-      });
+    const response = await api.get("/sections", {
+      params: criterionId
+        ? {
+            criterion_id: criterionId,
+          }
+        : {},
+    });
 
-      return response.data;
-    } catch (error) {
-      console.error("Failed to fetch sections:", error);
-      return [];
-    }
+    return response.data;
   },
 
-  // Get all NAAC metrics
+  // ==========================================
+  // GET ALL METRICS
+  // ==========================================
   getMetrics: async () => {
-    try {
-      const response = await api.get("/metrics");
-      return response.data;
-    } catch (error) {
-      console.error("Failed to fetch metrics:", error);
-      return [];
-    }
+    const response = await api.get("/metrics");
+    return response.data;
   },
-};
 
-getEvidenceRequirements: async () => {
-  try {
+  // ==========================================
+  // GET EVIDENCE REQUIREMENTS
+  // ==========================================
+  getEvidenceRequirements: async () => {
     const response = await api.get("/evidence-requirements");
     return response.data;
-  } catch (error) {
-    console.error(
-      "Failed to fetch evidence requirements:",
-      error
-    );
-    return [];
-  }
+  },
 };
 
 export default criteriaService;

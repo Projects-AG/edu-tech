@@ -7,6 +7,7 @@ from sqlalchemy import (
     Text,
     DateTime,
     ForeignKey,
+    Float,
 )
 
 from app.db.database import Base
@@ -68,6 +69,22 @@ class Review(Base):
     )
 
     # ---------------------------------------------------------
+    # SCORING
+    #
+    # score = actual marks awarded by reviewer
+    # max_score = maximum marks for the metric
+    # ---------------------------------------------------------
+    score = Column(
+        Float,
+        nullable=True
+    )
+
+    max_score = Column(
+        Float,
+        nullable=True
+    )
+
+    # ---------------------------------------------------------
     # TIMESTAMP
     # ---------------------------------------------------------
     created_at = Column(
@@ -75,4 +92,3 @@ class Review(Base):
         default=datetime.utcnow,
         nullable=False
     )
-

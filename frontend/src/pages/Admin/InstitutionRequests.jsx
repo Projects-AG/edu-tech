@@ -105,7 +105,7 @@ const InstitutionRequests = () => {
       const response = await api.post(
         `/institution-requests/${request.id}/reject`,
         {
-          rejection_reason: reason.trim() || "Request rejected by administrator.",
+          reason: reason.trim() || "Request rejected by administrator.",
         }
       );
 

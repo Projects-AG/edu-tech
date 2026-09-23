@@ -16,6 +16,9 @@ import ForgotPassword from "../pages/ForgotPassword";
 import Dashboard from "../pages/Dashboard";
 import Departments from "../pages/Departments";
 import Criteria from "../pages/Criteria";
+import CriterionDetail from "../pages/CriterionDetail";
+import MetricDetail from "../pages/MetricDetail";
+import MetricSubmission from "../pages/MetricSubmission";
 import Documents from "../pages/Documents";
 import Submissions from "../pages/Submissions";
 import Review from "../pages/Review";
@@ -37,35 +40,76 @@ import RegistrationRequests from "../pages/Admin/RegistrationRequests";
 // =========================================
 // PROTECTED ROUTE GUARD
 // =========================================
-const ProtectedRoute = ({ children, permission, role }) => {
+const ProtectedRoute = ({
+  children,
+  permission,
+  role,
+  roles,
+}) => {
   const {
     isAuthenticated,
     activeRole,
     hasPermission,
   } = useAuth();
 
-  // Not logged in
+  // =========================================
+  // NOT LOGGED IN
+  // =========================================
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
-  // Role restriction
-  // Admin can access all admin routes
-  if (
-    role &&
-    activeRole !== role &&
-    activeRole !== "Admin"
-  ) {
-    return <Navigate to="/unauthorized" replace />;
+  // =========================================
+  // SINGLE ROLE RESTRICTION
+  // =========================================
+  if (role) {
+    if (
+      activeRole !== role &&
+      activeRole !== "Admin"
+    ) {
+      return (
+        <Navigate
+          to="/unauthorized"
+          replace
+        />
+      );
+    }
   }
 
-  // Permission restriction
+  // =========================================
+  // MULTIPLE ROLE RESTRICTION
+  // =========================================
+  if (roles && roles.length > 0) {
+    const hasAllowedRole =
+      roles.includes(activeRole);
+
+    if (
+      !hasAllowedRole &&
+      activeRole !== "Admin"
+    ) {
+      return (
+        <Navigate
+          to="/unauthorized"
+          replace
+        />
+      );
+    }
+  }
+
+  // =========================================
+  // PERMISSION RESTRICTION
+  // =========================================
   if (
     permission &&
     !hasPermission(permission) &&
     activeRole !== "Admin"
   ) {
-    return <Navigate to="/unauthorized" replace />;
+    return (
+      <Navigate
+        to="/unauthorized"
+        replace
+      />
+    );
   }
 
   return children;
@@ -97,7 +141,6 @@ export const AppRoutes = () => {
         element={<ForgotPassword />}
       />
 
-
       {/* =========================================
           PROTECTED APPLICATION
           DashboardLayout wraps all logged-in pages
@@ -125,20 +168,15 @@ export const AppRoutes = () => {
           element={<Dashboard />}
         />
 
-
         {/* =========================================
             INSTITUTION MANAGEMENT
-            Shows ACTIVE/CREATED institutions
-
-            GET /institutions
+            ADMIN ONLY
         ========================================= */}
 
         <Route
           path="/institutions"
           element={
-            <ProtectedRoute
-              role="Admin"
-            >
+            <ProtectedRoute role="Admin">
               <InstitutionManagement />
             </ProtectedRoute>
           }
@@ -147,33 +185,25 @@ export const AppRoutes = () => {
         <Route
           path="/admin/institutions"
           element={
-            <ProtectedRoute
-              role="Admin"
-            >
+            <ProtectedRoute role="Admin">
               <InstitutionManagement />
             </ProtectedRoute>
           }
         />
 
-
         {/* =========================================
-            INSTITUTION REGISTRATION REQUESTS
-            Shows PENDING / APPROVED / REJECTED requests
-
-            GET /institution-requests
+            INSTITUTION REQUESTS
+            ADMIN ONLY
         ========================================= */}
 
         <Route
           path="/admin/institution-requests"
           element={
-            <ProtectedRoute
-              role="Admin"
-            >
+            <ProtectedRoute role="Admin">
               <InstitutionRequests />
             </ProtectedRoute>
           }
         />
-
 
         {/* =========================================
             DEPARTMENTS
@@ -184,7 +214,6 @@ export const AppRoutes = () => {
           element={<Departments />}
         />
 
-
         {/* =========================================
             NAAC CRITERIA
         ========================================= */}
@@ -194,16 +223,51 @@ export const AppRoutes = () => {
           element={<Criteria />}
         />
 
+        {/* =========================================
+            CRITERION DETAIL
+
+            No criteria.view restriction here,
+            because NAAC Coordinator should be able
+            to open the accreditation workflow.
+        ========================================= */}
+
+        <Route
+          path="/criteria/:criterionId"
+          element={<CriterionDetail />}
+        />
 
         {/* =========================================
-            DOCUMENTS
+            METRIC DETAIL
+        ========================================= */}
+
+        <Route
+          path="/criteria/:criterionId/metrics/:metricId"
+          element={<MetricDetail />}
+        />
+
+        {/* =========================================
+            METRIC SUBMISSION
+
+            Example:
+            /criteria/1/metrics/7/submit
+
+            1 = Criterion 1
+            7 = Metric 1.3.2
+        ========================================= */}
+
+        <Route
+          path="/criteria/:criterionId/metrics/:metricId/submit"
+          element={<MetricSubmission />}
+        />
+
+        {/* =========================================
+            DOCUMENTS & EVIDENCE
         ========================================= */}
 
         <Route
           path="/documents"
           element={<Documents />}
         />
-
 
         {/* =========================================
             SUBMISSIONS
@@ -214,7 +278,6 @@ export const AppRoutes = () => {
           element={<Submissions />}
         />
 
-
         {/* =========================================
             REVIEW
         ========================================= */}
@@ -223,7 +286,6 @@ export const AppRoutes = () => {
           path="/review"
           element={<Review />}
         />
-
 
         {/* =========================================
             REPORTS
@@ -234,7 +296,6 @@ export const AppRoutes = () => {
           element={<Reports />}
         />
 
-
         {/* =========================================
             NOTIFICATIONS
         ========================================= */}
@@ -243,7 +304,6 @@ export const AppRoutes = () => {
           path="/notifications"
           element={<Notifications />}
         />
-
 
         {/* =========================================
             INSTITUTION PROFILE
@@ -254,7 +314,6 @@ export const AppRoutes = () => {
           element={<Institution />}
         />
 
-
         {/* =========================================
             ADMIN - USER MANAGEMENT
         ========================================= */}
@@ -262,14 +321,11 @@ export const AppRoutes = () => {
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute
-              role="Admin"
-            >
+            <ProtectedRoute role="Admin">
               <UserManagement />
             </ProtectedRoute>
           }
         />
-
 
         {/* =========================================
             ADMIN - ROLES & PERMISSIONS
@@ -278,30 +334,37 @@ export const AppRoutes = () => {
         <Route
           path="/admin/roles"
           element={
-            <ProtectedRoute
-              role="Admin"
-            >
+            <ProtectedRoute role="Admin">
               <RolePermissions />
             </ProtectedRoute>
           }
         />
 
-
         {/* =========================================
-            ADMIN - USER REGISTRATION REQUESTS
+            REGISTRATION REQUESTS
+
+            Allowed:
+            Admin
+            Principal / Director
+            NAAC Coordinator
+            Dept. Coordinator
         ========================================= */}
 
         <Route
           path="/admin/registration-requests"
           element={
             <ProtectedRoute
-              role="Admin"
+              roles={[
+                "Admin",
+                "Principal / Director",
+                "NAAC Coordinator",
+                "Dept. Coordinator",
+              ]}
             >
               <RegistrationRequests />
             </ProtectedRoute>
           }
         />
-
 
         {/* =========================================
             ADMIN - SYSTEM SETTINGS
@@ -310,14 +373,11 @@ export const AppRoutes = () => {
         <Route
           path="/admin/settings"
           element={
-            <ProtectedRoute
-              role="Admin"
-            >
+            <ProtectedRoute role="Admin">
               <SystemSettings />
             </ProtectedRoute>
           }
         />
-
 
         {/* =========================================
             UNAUTHORIZED
@@ -330,14 +390,18 @@ export const AppRoutes = () => {
 
       </Route>
 
-
       {/* =========================================
           FALLBACK
       ========================================= */}
 
       <Route
         path="*"
-        element={<Navigate to="/" replace />}
+        element={
+          <Navigate
+            to="/"
+            replace
+          />
+        }
       />
 
     </Routes>

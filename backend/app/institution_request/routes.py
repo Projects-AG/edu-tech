@@ -392,7 +392,7 @@ def reject_institution_request(
     current_user: User = Depends(
         require_permission(
             "INSTITUTION_MANAGEMENT",
-            "View",
+            "Create",
         )
     ),
     db: Session = Depends(get_db),
@@ -434,3 +434,5 @@ def reject_institution_request(
     db.refresh(request)
 
     return request
+
+

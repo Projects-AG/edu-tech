@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+
 import criteriaService from "../services/criteriaService";
 
 const MetricDetail = () => {
@@ -11,19 +12,34 @@ const MetricDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // ============================================================
+  // LOAD METRIC + EVIDENCE REQUIREMENTS
+  // ============================================================
+
   useEffect(() => {
     const loadMetricData = async () => {
       try {
         setLoading(true);
         setError("");
 
+        // ------------------------------------------------------
         // 1. Get all metrics
-        const metrics = await criteriaService.getMetrics();
+        // ------------------------------------------------------
 
+        const metrics =
+          await criteriaService.getMetrics();
+
+        // ------------------------------------------------------
         // 2. Find selected metric
-        const selectedMetric = metrics.find(
-          (m) => String(m.id) === String(metricId)
-        );
+        // ------------------------------------------------------
+
+        const selectedMetric = Array.isArray(metrics)
+          ? metrics.find(
+              (m) =>
+                String(m.id) ===
+                String(metricId)
+            )
+          : null;
 
         if (!selectedMetric) {
           setError("Metric not found.");
@@ -32,22 +48,36 @@ const MetricDetail = () => {
 
         setMetric(selectedMetric);
 
-        // 3. Get evidence requirements
+        // ------------------------------------------------------
+        // 3. Get all evidence requirements
+        // ------------------------------------------------------
+
         const allEvidence =
           await criteriaService.getEvidenceRequirements();
 
-        // 4. Keep evidence belonging to this metric
-        const metricEvidence = Array.isArray(allEvidence)
-          ? allEvidence.filter(
-              (evidence) =>
-                String(evidence.metric_id) ===
-                String(metricId)
-            )
-          : [];
+        // ------------------------------------------------------
+        // 4. Keep only evidence for this metric
+        // ------------------------------------------------------
 
-        setEvidenceRequirements(metricEvidence);
+        const metricEvidence =
+          Array.isArray(allEvidence)
+            ? allEvidence.filter(
+                (evidence) =>
+                  String(
+                    evidence.metric_id
+                  ) === String(metricId)
+              )
+            : [];
 
-        console.log("SELECTED METRIC:", selectedMetric);
+        setEvidenceRequirements(
+          metricEvidence
+        );
+
+        console.log(
+          "SELECTED METRIC:",
+          selectedMetric
+        );
+
         console.log(
           "EVIDENCE REQUIREMENTS:",
           metricEvidence
@@ -58,7 +88,9 @@ const MetricDetail = () => {
           err
         );
 
-        setError("Failed to load metric data.");
+        setError(
+          "Failed to load metric data."
+        );
       } finally {
         setLoading(false);
       }
@@ -67,9 +99,9 @@ const MetricDetail = () => {
     loadMetricData();
   }, [metricId]);
 
-  // -----------------------------
-  // Loading
-  // -----------------------------
+  // ============================================================
+  // LOADING
+  // ============================================================
 
   if (loading) {
     return (
@@ -84,9 +116,9 @@ const MetricDetail = () => {
     );
   }
 
-  // -----------------------------
-  // Error
-  // -----------------------------
+  // ============================================================
+  // ERROR
+  // ============================================================
 
   if (error) {
     return (
@@ -98,7 +130,9 @@ const MetricDetail = () => {
       >
         <button
           onClick={() =>
-            navigate(`/criteria/${criterionId}`)
+            navigate(
+              `/criteria/${criterionId}`
+            )
           }
           style={{
             border: "none",
@@ -106,6 +140,7 @@ const MetricDetail = () => {
             color: "#2563eb",
             cursor: "pointer",
             fontWeight: 600,
+            marginBottom: "20px",
           }}
         >
           ← Back to Criterion
@@ -116,19 +151,25 @@ const MetricDetail = () => {
     );
   }
 
+  // ============================================================
+  // MAIN UI
+  // ============================================================
+
   return (
     <div
       style={{
         color: "#1e293b",
       }}
     >
-      {/* -------------------------------- */}
-      {/* Back */}
-      {/* -------------------------------- */}
+      {/* ======================================================
+          BACK
+      ====================================================== */}
 
       <button
         onClick={() =>
-          navigate(`/criteria/${criterionId}`)
+          navigate(
+            `/criteria/${criterionId}`
+          )
         }
         style={{
           border: "none",
@@ -142,11 +183,15 @@ const MetricDetail = () => {
         ← Back to Criterion
       </button>
 
-      {/* -------------------------------- */}
-      {/* Metric Header */}
-      {/* -------------------------------- */}
+      {/* ======================================================
+          METRIC HEADER
+      ====================================================== */}
 
-      <div style={{ marginBottom: "24px" }}>
+      <div
+        style={{
+          marginBottom: "24px",
+        }}
+      >
         <div
           style={{
             display: "flex",
@@ -177,7 +222,11 @@ const MetricDetail = () => {
           </span>
         </div>
 
-        <h1 style={{ margin: 0 }}>
+        <h1
+          style={{
+            margin: 0,
+          }}
+        >
           {metric.title}
         </h1>
 
@@ -194,9 +243,9 @@ const MetricDetail = () => {
         )}
       </div>
 
-      {/* -------------------------------- */}
-      {/* Metric Information */}
-      {/* -------------------------------- */}
+      {/* ======================================================
+          METRIC INFORMATION
+      ====================================================== */}
 
       <div
         className="panel"
@@ -208,7 +257,12 @@ const MetricDetail = () => {
           marginBottom: "20px",
         }}
       >
-        <h2 style={{ marginTop: 0 }}>
+        <h2
+          style={{
+            marginTop: 0,
+            marginBottom: "18px",
+          }}
+        >
           Metric Information
         </h2>
 
@@ -227,17 +281,23 @@ const MetricDetail = () => {
 
           <InfoItem
             label="Metric Type"
-            value={metric.metric_type}
+            value={
+              metric.metric_type
+            }
           />
 
           <InfoItem
             label="Weightage"
-            value={metric.weightage}
+            value={
+              metric.weightage
+            }
           />
 
           <InfoItem
             label="Maximum Score"
-            value={metric.max_score}
+            value={
+              metric.max_score
+            }
           />
 
           <InfoItem
@@ -251,14 +311,16 @@ const MetricDetail = () => {
 
           <InfoItem
             label="Evidence Requirements"
-            value={evidenceRequirements.length}
+            value={
+              evidenceRequirements.length
+            }
           />
         </div>
       </div>
 
-      {/* -------------------------------- */}
-      {/* Evidence Requirements */}
-      {/* -------------------------------- */}
+      {/* ======================================================
+          EVIDENCE REQUIREMENTS
+      ====================================================== */}
 
       <div
         className="panel"
@@ -272,13 +334,18 @@ const MetricDetail = () => {
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent:
+              "space-between",
             alignItems: "center",
             marginBottom: "20px",
           }}
         >
           <div>
-            <h2 style={{ margin: 0 }}>
+            <h2
+              style={{
+                margin: 0,
+              }}
+            >
               Evidence Requirements
             </h2>
 
@@ -286,6 +353,7 @@ const MetricDetail = () => {
               style={{
                 color: "#64748b",
                 marginTop: "6px",
+                marginBottom: 0,
               }}
             >
               Evidence required for this metric.
@@ -306,14 +374,18 @@ const MetricDetail = () => {
           </span>
         </div>
 
-        {/* No evidence */}
+        {/* ----------------------------------------------------
+            NO EVIDENCE
+        ---------------------------------------------------- */}
+
         {evidenceRequirements.length === 0 && (
           <div
             style={{
               padding: "30px",
               textAlign: "center",
               color: "#64748b",
-              border: "1px dashed #cbd5e1",
+              border:
+                "1px dashed #cbd5e1",
               borderRadius: "10px",
             }}
           >
@@ -323,7 +395,10 @@ const MetricDetail = () => {
           </div>
         )}
 
-        {/* Evidence cards */}
+        {/* ----------------------------------------------------
+            EVIDENCE CARDS
+        ---------------------------------------------------- */}
+
         {evidenceRequirements.map(
           (evidence) => (
             <div
@@ -341,7 +416,8 @@ const MetricDetail = () => {
                   display: "flex",
                   justifyContent:
                     "space-between",
-                  alignItems: "flex-start",
+                  alignItems:
+                    "flex-start",
                   gap: "20px",
                 }}
               >
@@ -363,6 +439,7 @@ const MetricDetail = () => {
                           "8px",
                         lineHeight:
                           1.5,
+                        marginBottom: 0,
                       }}
                     >
                       {
@@ -427,15 +504,89 @@ const MetricDetail = () => {
           )
         )}
       </div>
+
+      {/* ======================================================
+          START SUBMISSION
+      ====================================================== */}
+
+      <div
+        className="panel"
+        style={{
+          background: "#ffffff",
+          border: "1px solid #e2e8f0",
+          borderRadius: "12px",
+          padding: "20px",
+          marginTop: "20px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems: "center",
+            gap: "20px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                marginTop: 0,
+                marginBottom: "8px",
+              }}
+            >
+              Start Submission
+            </h2>
+
+            <p
+              style={{
+                color: "#64748b",
+                margin: 0,
+                lineHeight: 1.5,
+              }}
+            >
+              Enter the metric value, upload
+              the required evidence, and submit
+              it for review.
+            </p>
+          </div>
+
+          <button
+            onClick={() =>
+              navigate(
+                `/criteria/${criterionId}/metrics/${metricId}/submit`
+              )
+            }
+            style={{
+              padding:
+                "11px 18px",
+              border: "none",
+              borderRadius: "8px",
+              background: "#2563eb",
+              color: "#ffffff",
+              cursor: "pointer",
+              fontWeight: 600,
+              whiteSpace:
+                "nowrap",
+            }}
+          >
+            Create Submission
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
 
-// --------------------------------
-// Small reusable component
-// --------------------------------
+// ============================================================
+// INFO ITEM
+// ============================================================
 
-const InfoItem = ({ label, value }) => (
+const InfoItem = ({
+  label,
+  value,
+}) => (
   <div
     style={{
       background: "#f8fafc",
@@ -465,12 +616,16 @@ const InfoItem = ({ label, value }) => (
   </div>
 );
 
-// --------------------------------
-// Format file types
-// --------------------------------
+// ============================================================
+// FORMAT FILE TYPES
+// ============================================================
 
-const formatFileTypes = (types) => {
-  if (!types) return "Not specified";
+const formatFileTypes = (
+  types
+) => {
+  if (!types) {
+    return "Not specified";
+  }
 
   if (Array.isArray(types)) {
     return types.join(", ");

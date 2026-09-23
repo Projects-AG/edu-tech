@@ -22,7 +22,7 @@ const institutionRequestService = {
     const response = await api.post(
       `/institution-requests/${requestId}/reject`,
       {
-        rejection_reason: rejectionReason,
+        reason: rejectionReason,
       }
     );
     return response.data;

@@ -15,6 +15,11 @@ from app.models.registration_request import RegistrationRequest
 from app.models.faculty import Faculty
 from app.models.institution_request import InstitutionRequest
 
+# NAAC structure
+from app.models.section import Section
+from app.models.metric import Metric
+from app.models.evidence_requirement import EvidenceRequirement
+
 
 __all__ = [
     "User",
@@ -33,4 +38,7 @@ __all__ = [
     "RegistrationRequest",
     "Faculty",
     "InstitutionRequest",
+    "Section",
+    "Metric",
+    "EvidenceRequirement",
 ]

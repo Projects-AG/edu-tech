@@ -10,23 +10,74 @@ const api = axios.create({
 // Attach JWT to every protected request
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("accessToken");
+    const token =
+      localStorage.getItem(
+        "accessToken"
+      );
 
-    console.log("API REQUEST:", config.method?.toUpperCase(), config.url);
     console.log(
-      "TOKEN ATTACHED:",
-      token ? `${token.substring(0, 25)}...` : "NO TOKEN"
+      "API REQUEST:",
+      config.method?.toUpperCase(),
+      config.url
     );
 
+    console.log(
+      "TOKEN ATTACHED:",
+      token
+        ? `${token.substring(
+            0,
+            25
+          )}...`
+        : "NO TOKEN"
+    );
+
+    // ----------------------------------------------------------
+    // IMPORTANT:
+    // Let the browser/Axios create the multipart boundary
+    // for FormData uploads.
+    // ----------------------------------------------------------
+
+    if (
+      typeof FormData !==
+        "undefined" &&
+      config.data instanceof
+        FormData
+    ) {
+      if (
+        config.headers &&
+        typeof config.headers.delete ===
+          "function"
+      ) {
+        config.headers.delete(
+          "Content-Type"
+        );
+      } else if (
+        config.headers
+      ) {
+        delete config.headers[
+          "Content-Type"
+        ];
+      }
+    }
+
+    // ----------------------------------------------------------
+    // JWT
+    // ----------------------------------------------------------
+
     if (token) {
-      config.headers = config.headers || {};
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers =
+        config.headers || {};
+
+      config.headers.Authorization =
+        `Bearer ${token}`;
     }
 
     return config;
   },
   (error) => {
-    return Promise.reject(error);
+    return Promise.reject(
+      error
+    );
   }
 );
 

@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Settings,
   UserCheck,
+  ClipboardList,
 } from "lucide-react";
 
 import {
@@ -250,6 +251,11 @@ export const NAVIGATION_CONFIG = {
       icon: Building,
     },
     {
+      label: "Institution Requests",
+      path: "/admin/institution-requests",
+      icon: ClipboardList,
+    },
+    {
       label: "User Management",
       path: "/admin/users",
       icon: Users,
@@ -297,3 +303,6 @@ export const getNavigationForRole = (
     ]
   );
 };
+
+
+

@@ -25,6 +25,7 @@ from app.models import (
     Document,
     Review,
     Notification,
+    RegistrationRequest,
 )
 
 # Load .env
