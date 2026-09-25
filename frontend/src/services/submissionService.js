@@ -206,7 +206,7 @@ export const submissionService = {
   },
 
   // =========================
-  // REJECT SUBMISSION
+  // REVIEWER REJECT
   // =========================
   rejectSubmission: async (id, data) => {
     try {
@@ -234,6 +234,7 @@ export const submissionService = {
   // =========================
   // DATA APPROVER
   // APPROVE SUBMISSION
+  // APPROVED → DATA APPROVED
   // =========================
   approveSubmission: async (id, data = {}) => {
     try {
@@ -260,24 +261,28 @@ export const submissionService = {
 
   // =========================
   // DATA APPROVER
-  // REQUEST CHANGES
+  // REJECT SUBMISSION
+  // APPROVED → REJECTED
   // =========================
-  requestChanges: async (id, data) => {
+  rejectSubmissionByDataApprover: async (
+    id,
+    data = {}
+  ) => {
     try {
       const response = await api.post(
-        `/submissions/${id}/data-request-changes`,
+        `/submissions/${id}/data-reject`,
         data
       );
 
       console.log(
-        "REQUEST CHANGES RESPONSE:",
+        "DATA APPROVER REJECTION RESPONSE:",
         response.data
       );
 
       return response.data;
     } catch (error) {
       console.error(
-        "REQUEST CHANGES ERROR:",
+        "DATA APPROVER REJECTION ERROR:",
         error?.response?.data || error
       );
 

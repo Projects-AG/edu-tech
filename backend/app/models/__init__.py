@@ -14,6 +14,7 @@ from app.models.notification import Notification
 from app.models.registration_request import RegistrationRequest
 from app.models.faculty import Faculty
 from app.models.institution_request import InstitutionRequest
+from app.models.document_version import DocumentVersion
 
 # NAAC structure
 from app.models.section import Section

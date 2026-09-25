@@ -18,6 +18,14 @@ const criteriaService = {
   },
 
   // ==========================================
+  // CREATE CRITERION
+  // ==========================================
+  createCriterion: async (criterionData) => {
+    const response = await api.post("/criteria", criterionData);
+    return response.data;
+  },
+
+  // ==========================================
   // GET SECTIONS
   // Optional criterionId filter
   // ==========================================
@@ -48,6 +56,30 @@ const criteriaService = {
     const response = await api.get("/evidence-requirements");
     return response.data;
   },
+
+  // ==========================================
+// CREATE SECTION
+// ==========================================
+createSection: async (sectionData) => {
+  const response = await api.post("/sections", sectionData);
+  return response.data;
+},
+
+// ==========================================
+// UPDATE SECTION
+// ==========================================
+updateSection: async (sectionId, sectionData) => {
+  const response = await api.put(`/sections/${sectionId}`, sectionData);
+  return response.data;
+},
+
+// ==========================================
+// DELETE SECTION
+// ==========================================
+deleteSection: async (sectionId) => {
+  const response = await api.delete(`/sections/${sectionId}`);
+  return response.data;
+},
 };
 
 export default criteriaService;

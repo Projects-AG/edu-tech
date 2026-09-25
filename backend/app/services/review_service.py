@@ -1,19 +1,49 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
+
 from app.models import Review, Submission, User
 from app.services.submission_service import transition_submission_state
+
+
+VALID_REVIEW_DECISIONS = {
+    "Approved",
+    "Rejected",
+    "Changes Requested",
+}
+
 
 def create_review_decision(
     db: Session,
     submission_id: int,
     reviewer_user: User,
-    review_status: str,    # Approved, Rejected, Changes Requested
+    review_status: str,
     comments: str = None,
     score: float = None,
     max_score: float = None,
 ) -> Review:
-    
-    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+
+    # ---------------------------------------------------------
+    # VALIDATE REVIEW DECISION
+    # ---------------------------------------------------------
+
+    if review_status not in VALID_REVIEW_DECISIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Invalid review decision. Allowed values are: "
+                "Approved, Rejected, Changes Requested"
+            )
+        )
+
+    # ---------------------------------------------------------
+    # FIND SUBMISSION
+    # ---------------------------------------------------------
+
+    submission = (
+        db.query(Submission)
+        .filter(Submission.id == submission_id)
+        .first()
+    )
 
     if not submission:
         raise HTTPException(
@@ -21,14 +51,23 @@ def create_review_decision(
             detail="Submission not found"
         )
 
-    # Multi-tenant resource check / Institutiuon-level authorization
-    if (reviewer_user.institution_id and submission.institution_id != reviewer_user.institution_id):
+    # ---------------------------------------------------------
+    # MULTI-TENANT RESOURCE CHECK
+    # ---------------------------------------------------------
+
+    if (
+        reviewer_user.institution_id
+        and submission.institution_id != reviewer_user.institution_id
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Forbidden: Resource belongs to another institution"
         )
 
-     # Only submissions currently under review can receive a review decision
+    # ---------------------------------------------------------
+    # REVIEWER CAN ONLY DECIDE ON SUBMISSIONS UNDER REVIEW
+    # ---------------------------------------------------------
+
     if submission.status != "Under Review":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -38,8 +77,21 @@ def create_review_decision(
             )
         )
 
-    
-    # Create Review record
+    # ---------------------------------------------------------
+    # SCORE VALIDATION
+    # ---------------------------------------------------------
+
+    if score is not None and max_score is not None:
+        if score > max_score:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Score cannot be greater than max_score"
+            )
+
+    # ---------------------------------------------------------
+    # CREATE REVIEW RECORD
+    # ---------------------------------------------------------
+
     review = Review(
         submission_id=submission.id,
         reviewer_id=reviewer_user.id,
@@ -48,19 +100,25 @@ def create_review_decision(
         score=score,
         max_score=max_score,
     )
+
     db.add(review)
 
-    # The submission state is changed ONLY through the
-    # centralized state machine.
-    # Validate and apply submission state transition
+    # ---------------------------------------------------------
+    # CENTRALIZED SUBMISSION STATE TRANSITION
+    # ---------------------------------------------------------
+
     transition_submission_state(
         db=db,
         submission=submission,
         new_status=review_status,
         actor_user=reviewer_user
     )
+
+    # ---------------------------------------------------------
+    # COMMIT
+    # ---------------------------------------------------------
+
     db.commit()
     db.refresh(review)
 
     return review
-  

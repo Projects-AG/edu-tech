@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import { Link, useNavigate } from "react-router-dom";
 
 import {
@@ -49,6 +50,7 @@ function Login() {
 
   const roles = [
     "Admin",
+    "Institution Admin",
     "NAAC Coordinator",
     "Committee Member",
     "Dept. Coordinator",
@@ -69,7 +71,18 @@ function Login() {
     const clean = role
       .trim()
       .toLowerCase()
-      .replace(/[./_\-\s]/g, "");
+      .replace(/[./_\\-\s]/g, "");
+
+    // IMPORTANT:
+    // Institution Admin MUST be checked before Admin.
+    // Otherwise "Institution Admin" could be treated as "Admin".
+
+    if (
+      clean === "institutionadmin" ||
+      clean === "institutionadministrator"
+    ) {
+      return "institutionadmin";
+    }
 
     if (
       clean === "departmentcoordinator" ||
@@ -90,6 +103,22 @@ function Login() {
       clean === "coordinator"
     ) {
       return "naaccoordinator";
+    }
+
+    if (clean === "committeemember") {
+      return "committeemember";
+    }
+
+    if (clean === "dataapprover") {
+      return "dataapprover";
+    }
+
+    if (clean === "reviewer") {
+      return "reviewer";
+    }
+
+    if (clean === "admin" || clean === "platformadmin") {
+      return "admin";
     }
 
     return clean;
@@ -139,17 +168,6 @@ function Login() {
     try {
       // =======================================================
       // LOGIN REQUEST
-      //
-      // Backend expects LoginRequest as JSON:
-      //
-      // {
-      //   email: "...",
-      //   password: "...",
-      //   role: "..."
-      // }
-      //
-      // IMPORTANT:
-      // Do NOT use Axios params here.
       // =======================================================
 
       const response = await api.post("/auth/login", {
@@ -255,6 +273,7 @@ function Login() {
 
         navigate("/dashboard");
       }
+
     } catch (error) {
       // =======================================================
       // LOGIN ERROR
@@ -311,11 +330,13 @@ function Login() {
             "Invalid email, password, or user type."
           );
         }
+
       } else {
         setError(
           "Unable to connect to the backend server."
         );
       }
+
     } finally {
       setLoading(false);
     }
@@ -371,7 +392,6 @@ function Login() {
           <h1>
             Smarter Accreditation.
             <br />
-
             <span>
               Stronger Institutions.
             </span>
@@ -393,7 +413,6 @@ function Login() {
             </div>
 
             <div>
-
               <strong>
                 Centralized Accreditation Management
               </strong>
@@ -401,7 +420,6 @@ function Login() {
               <span>
                 (Criteria 1–7)
               </span>
-
             </div>
 
           </div>
@@ -415,7 +433,6 @@ function Login() {
             </div>
 
             <div>
-
               <strong>
                 Evidence & Document Tracking
               </strong>
@@ -423,7 +440,6 @@ function Login() {
               <span>
                 with verifiable audit logs
               </span>
-
             </div>
 
           </div>
@@ -437,7 +453,6 @@ function Login() {
             </div>
 
             <div>
-
               <strong>
                 Secure Role-Based Access
               </strong>
@@ -445,7 +460,6 @@ function Login() {
               <span>
                 verified during authentication
               </span>
-
             </div>
 
           </div>
@@ -455,7 +469,6 @@ function Login() {
           <div className="stats-card">
 
             <div>
-
               <small>
                 Accreditation Cycle
               </small>
@@ -463,11 +476,9 @@ function Login() {
               <strong>
                 SSR & AQAR Ready
               </strong>
-
             </div>
 
             <div>
-
               <small>
                 Compliance Standard
               </small>
@@ -475,11 +486,9 @@ function Login() {
               <strong className="green-text">
                 NAAC RAF 2024–26
               </strong>
-
             </div>
 
             <div>
-
               <small>
                 Data Integrity
               </small>
@@ -487,7 +496,6 @@ function Login() {
               <strong>
                 256-bit Encrypted
               </strong>
-
             </div>
 
           </div>
@@ -503,13 +511,9 @@ function Login() {
           </span>
 
           <span>
-
             <i></i>
-
             Institutional Cloud Architecture •
-
             ISO/IEC 27001
-
           </span>
 
         </div>
@@ -595,11 +599,8 @@ function Login() {
                     whiteSpace: "nowrap",
                   }}
                 >
-
                   <ShieldCheck size={13} />
-
                   Active RBAC Routing
-
                 </span>
 
               </div>
@@ -614,15 +615,12 @@ function Login() {
 
                 <button
                   type="button"
-
                   onClick={() =>
                     setRoleDropdownOpen(
                       !roleDropdownOpen
                     )
                   }
-
                   className="input-container"
-
                   style={{
                     width: "100%",
                     cursor: "pointer",
@@ -662,14 +660,11 @@ function Login() {
 
                   <ChevronDown
                     size={18}
-
                     style={{
                       color: "#64748b",
-
                       transform: roleDropdownOpen
                         ? "rotate(180deg)"
                         : "rotate(0deg)",
-
                       transition:
                         "transform 0.2s ease",
                     }}
@@ -701,79 +696,54 @@ function Login() {
 
                       <button
                         key={role}
-
                         type="button"
-
                         onClick={() => {
                           setSelectedRole(role);
                           setRoleDropdownOpen(false);
                           setError("");
                         }}
-
                         style={{
                           width: "100%",
                           border: "none",
-
                           background:
                             selectedRole === role
                               ? "#f1f5ff"
                               : "transparent",
-
                           borderRadius: "7px",
-
                           padding: "10px 12px",
-
                           textAlign: "left",
-
                           cursor: "pointer",
-
                           color:
                             selectedRole === role
                               ? "#4058b8"
                               : "#172033",
-
                           fontSize: "14px",
-
                           fontWeight:
                             selectedRole === role
                               ? "600"
                               : "400",
-
                           fontFamily: "inherit",
-
                           transition:
                             "background 0.15s ease",
                         }}
-
                         onMouseEnter={(event) => {
-
                           if (
                             selectedRole !== role
                           ) {
-
                             event.currentTarget.style.background =
                               "#f8fafc";
-
                           }
-
                         }}
-
                         onMouseLeave={(event) => {
-
                           if (
                             selectedRole !== role
                           ) {
-
                             event.currentTarget.style.background =
                               "transparent";
-
                           }
-
                         }}
                       >
-
                         {role}
-
                       </button>
 
                     ))}
@@ -812,11 +782,9 @@ function Login() {
                   type="email"
                   placeholder="coordinator@university.edu"
                   value={email}
-
                   onChange={(event) =>
                     setEmail(event.target.value)
                   }
-
                   required
                 />
 
@@ -852,22 +820,17 @@ function Login() {
                       ? "text"
                       : "password"
                   }
-
                   placeholder="Enter your password"
-
                   value={password}
-
                   onChange={(event) =>
                     setPassword(event.target.value)
                   }
-
                   required
                 />
 
                 <button
                   type="button"
                   className="eye-button"
-
                   onClick={() =>
                     setShowPassword(
                       !showPassword
@@ -898,7 +861,6 @@ function Login() {
                 <input
                   type="checkbox"
                   checked={rememberMe}
-
                   onChange={(event) =>
                     setRememberMe(
                       event.target.checked
@@ -914,11 +876,9 @@ function Login() {
 
               <button
                 type="button"
-
                 onClick={() =>
                   navigate("/forgot-password")
                 }
-
                 className="forgot-button"
               >
                 Forgot Password?
@@ -950,8 +910,7 @@ function Login() {
 
               {loading
                 ? "Signing In..."
-                : "Sign In"
-              }
+                : "Sign In"}
 
               {!loading && (
                 <ArrowRight size={19} />

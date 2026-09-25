@@ -1,29 +1,100 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import React, {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  ArrowLeft,
+  CheckCircle,
+  FileText,
+  UploadCloud,
+  XCircle,
+} from "lucide-react";
+
+import {
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 import criteriaService from "../services/criteriaService";
 import submissionService from "../services/submissionService";
-import documentService from "../services/documentService";
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+const EDITABLE_STATUSES = [
+  "draft",
+  "changes requested",
+  "resubmitted",
+];
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+const normalizeText = (value) => {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
+};
+
+const isEditableStatus = (status) => {
+  return EDITABLE_STATUSES.includes(
+    normalizeText(status)
+  );
+};
+
+// ============================================================
+// COMPONENT
+// ============================================================
 
 const MetricSubmission = () => {
-  const { criterionId, metricId } = useParams();
   const navigate = useNavigate();
 
-  const [metric, setMetric] = useState(null);
-  const [evidenceRequirements, setEvidenceRequirements] = useState([]);
+  const {
+    criterionId,
+    metricId,
+  } = useParams();
 
-  const [value, setValue] = useState("");
-  const [file, setFile] = useState(null);
+  // ============================================================
+  // MASTER DATA
+  // ============================================================
 
-  const [submission, setSubmission] = useState(null);
-  const [uploadedEvidence, setUploadedEvidence] = useState(null);
+  const [metric, setMetric] =
+    useState(null);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [evidenceRequirements, setEvidenceRequirements] =
+    useState([]);
 
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  // ============================================================
+  // SUBMISSION
+  // ============================================================
+
+  const [submission, setSubmission] =
+    useState(null);
+
+  const [value, setValue] =
+    useState("");
+
+  // ============================================================
+  // STATE
+  // ============================================================
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [message, setMessage] =
+    useState("");
 
   // ============================================================
   // LOAD METRIC + EVIDENCE REQUIREMENTS
@@ -35,14 +106,30 @@ const MetricSubmission = () => {
         setLoading(true);
         setError("");
 
-        const metrics = await criteriaService.getMetrics();
+        const [
+          metricsData,
+          evidenceData,
+        ] = await Promise.all([
+          criteriaService.getMetrics(),
+          criteriaService.getEvidenceRequirements(),
+        ]);
 
-        const selectedMetric = Array.isArray(metrics)
-          ? metrics.find(
-              (item) =>
-                String(item.id) === String(metricId)
-            )
-          : null;
+        const allMetrics =
+          Array.isArray(metricsData)
+            ? metricsData
+            : [];
+
+        const allEvidence =
+          Array.isArray(evidenceData)
+            ? evidenceData
+            : [];
+
+        const selectedMetric =
+          allMetrics.find(
+            (item) =>
+              String(item.id) ===
+              String(metricId)
+          );
 
         if (!selectedMetric) {
           setError("Metric not found.");
@@ -51,18 +138,16 @@ const MetricSubmission = () => {
 
         setMetric(selectedMetric);
 
-        const allEvidence =
-          await criteriaService.getEvidenceRequirements();
+        const metricEvidence =
+          allEvidence.filter(
+            (item) =>
+              String(item.metric_id) ===
+              String(metricId)
+          );
 
-        const metricEvidence = Array.isArray(allEvidence)
-          ? allEvidence.filter(
-              (item) =>
-                String(item.metric_id) ===
-                String(metricId)
-            )
-          : [];
-
-        setEvidenceRequirements(metricEvidence);
+        setEvidenceRequirements(
+          metricEvidence
+        );
 
         console.log(
           "METRIC SUBMISSION METRIC:",
@@ -75,13 +160,15 @@ const MetricSubmission = () => {
         );
       } catch (err) {
         console.error(
-          "LOAD METRIC SUBMISSION ERROR:",
-          err
+          "LOAD METRIC SUBMISSION DATA ERROR:",
+          err?.response?.data || err
         );
 
         setError(
-          err?.response?.data?.detail ||
+          getErrorMessage(
+            err,
             "Unable to load metric submission."
+          )
         );
       } finally {
         setLoading(false);
@@ -95,193 +182,196 @@ const MetricSubmission = () => {
   // CREATE DRAFT SUBMISSION
   // ============================================================
 
-  const handleCreateSubmission = async () => {
-    if (!value.trim()) {
-      setError("Please enter the metric value.");
-      return;
-    }
-
-    const numericValue = Number(value);
-
-    if (
-      Number.isNaN(numericValue) ||
-      numericValue < 0 ||
-      numericValue > 100
-    ) {
-      setError(
-        "Please enter a percentage value between 0 and 100."
-      );
-      return;
-    }
-
-    if (!metric) {
-      setError("Metric information is missing.");
-      return;
-    }
-
-    try {
-      setSaving(true);
+  const handleCreateSubmission =
+    async () => {
       setError("");
       setMessage("");
 
-      const payload = {
-        title: `${metric.code} - ${metric.title}`,
+      if (!metric) {
+        setError(
+          "Metric information is not available."
+        );
+        return;
+      }
 
-        criterion_id: Number(criterionId),
+      if (value === "") {
+        setError(
+          "Please enter the metric value."
+        );
+        return;
+      }
 
-        metric_code: metric.code,
+      const numericValue =
+        Number(value);
 
-        data_json: JSON.stringify({
-          value: numericValue,
-          unit: "percentage",
+      if (
+        Number.isNaN(numericValue) ||
+        numericValue < 0 ||
+        numericValue > 100
+      ) {
+        setError(
+          "Please enter a value between 0 and 100."
+        );
+        return;
+      }
 
-          // Demo calculation
-          total_students: 1000,
-          participating_students:
-            numericValue === 70
-              ? 700
-              : null,
+      try {
+        setSaving(true);
 
-          example:
-            numericValue === 70
-              ? "700 out of 1000 students"
-              : null,
-        }),
-      };
+        const payload = {
+          title:
+            `${metric.code} - ${metric.title}`,
 
-      console.log(
-        "CREATE METRIC SUBMISSION PAYLOAD:",
-        payload
-      );
+          criterion_id:
+            Number(criterionId),
 
-      const created =
-        await submissionService.createSubmission(
+          metric_code:
+            metric.code,
+
+          data_json:
+            JSON.stringify({
+              value: numericValue,
+              unit: "percentage",
+
+              total_students: 1000,
+
+              participating_students:
+                numericValue === 70
+                  ? 700
+                  : null,
+
+              example:
+                numericValue === 70
+                  ? "700 out of 1000 students"
+                  : null,
+            }),
+        };
+
+        console.log(
+          "CREATING DRAFT SUBMISSION:",
           payload
         );
 
-      setSubmission(created);
+        const result =
+          await submissionService.createSubmission(
+            payload
+          );
 
-      setMessage(
-        `Draft submission #${created.id} created successfully.`
-      );
-    } catch (err) {
-      console.error(
-        "CREATE METRIC SUBMISSION ERROR:",
-        err?.response?.data || err
-      );
-
-      setError(
-        err?.response?.data?.detail ||
-          "Unable to create submission."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ============================================================
-  // UPLOAD EVIDENCE
-  // ============================================================
-
-  const handleUpload = async () => {
-    if (!submission) {
-      setError(
-        "Create the draft submission before uploading evidence."
-      );
-      return;
-    }
-
-    if (!file) {
-      setError("Please select an evidence file.");
-      return;
-    }
-
-    try {
-      setUploading(true);
-      setError("");
-      setMessage("");
-
-      const result =
-        await documentService.uploadEvidence(
-          file,
-          submission.id,
-          `${metric.code} - ${file.name}`
+        console.log(
+          "CREATED SUBMISSION:",
+          result
         );
 
-      setUploadedEvidence(result);
+        setSubmission(result);
 
-      setMessage(
-        `Evidence uploaded successfully: ${result.title}`
-      );
-    } catch (err) {
-      console.error(
-        "EVIDENCE UPLOAD ERROR:",
-        err?.response?.data || err
-      );
+        setMessage(
+          `Draft Submission #${result.id} created successfully.`
+        );
+      } catch (err) {
+        console.error(
+          "CREATE SUBMISSION ERROR:",
+          err?.response?.data || err
+        );
 
-      setError(
-        err?.response?.data?.detail ||
-          "Unable to upload evidence."
-      );
-    } finally {
-      setUploading(false);
-    }
-  };
+        setError(
+          getErrorMessage(
+            err,
+            "Unable to create draft submission."
+          )
+        );
+      } finally {
+        setSaving(false);
+      }
+    };
 
   // ============================================================
-  // SUBMIT
+  // MANAGE EVIDENCE
+  //
+  // IMPORTANT:
+  // Evidence is NOT uploaded here.
+  //
+  // This page creates the draft.
+  // Documents & Evidence handles the actual file upload.
+  // ============================================================
+
+  const handleManageEvidence =
+    () => {
+      if (!submission) {
+        setError(
+          "Create a draft submission first."
+        );
+        return;
+      }
+
+      navigate(
+        `/documents/upload?criterion_id=${encodeURIComponent(
+          criterionId
+        )}&metric_id=${encodeURIComponent(
+          metricId
+        )}&submission_id=${encodeURIComponent(
+          submission.id
+        )}`
+      );
+    };
+
+  // ============================================================
+  // SUBMIT FOR REVIEW
   // ============================================================
 
   const handleSubmit = async () => {
+    setError("");
+    setMessage("");
+
     if (!submission) {
       setError(
-        "Create the draft submission first."
+        "Create a draft submission first."
       );
       return;
     }
 
-    const primaryEvidence =
-      evidenceRequirements[0];
-
     if (
-      primaryEvidence?.required &&
-      !uploadedEvidence
+      !isEditableStatus(
+        submission.status
+      )
     ) {
       setError(
-        "Please upload the required evidence before submitting."
+        `Submission #${submission.id} cannot be submitted from status "${submission.status}".`
       );
       return;
     }
 
     try {
-      setSaving(true);
-      setError("");
-      setMessage("");
+      setSubmitting(true);
 
-      await submissionService.submitSubmission(
-        submission.id
+      const result =
+        await submissionService.submitSubmission(
+          submission.id
+        );
+
+      console.log(
+        "SUBMIT SUBMISSION RESPONSE:",
+        result
       );
 
-      setSubmission((previous) => ({
-        ...previous,
-        status: "Submitted",
-      }));
+      setSubmission(result);
 
       setMessage(
-        "Submission sent successfully for review."
+        `Submission #${submission.id} submitted for review.`
       );
     } catch (err) {
       console.error(
-        "SUBMIT METRIC ERROR:",
+        "SUBMIT SUBMISSION ERROR:",
         err?.response?.data || err
       );
 
       setError(
-        err?.response?.data?.detail ||
-          "Unable to submit the submission."
+        getErrorMessage(
+          err,
+          "Unable to submit the submission for review."
+        )
       );
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
   };
 
@@ -293,67 +383,24 @@ const MetricSubmission = () => {
     return (
       <div
         style={{
-          padding: "30px",
+          padding: "40px",
           color: "#1e293b",
         }}
       >
-        Loading metric...
+        Loading metric submission...
       </div>
     );
   }
 
   // ============================================================
-  // ERROR WITHOUT METRIC
+  // UI
   // ============================================================
-
-  if (error && !metric) {
-    return (
-      <div
-        style={{
-          padding: "30px",
-          color: "#1e293b",
-        }}
-      >
-        <button
-          onClick={() =>
-            navigate(
-              `/criteria/${criterionId}/metrics/${metricId}`
-            )
-          }
-          style={{
-            border: "none",
-            background: "transparent",
-            color: "#2563eb",
-            cursor: "pointer",
-            fontWeight: 600,
-            marginBottom: "20px",
-          }}
-        >
-          ← Back to Metric
-        </button>
-
-        <h2>{error}</h2>
-      </div>
-    );
-  }
-
-  const primaryEvidence =
-    evidenceRequirements[0];
-
-  const canSubmit =
-    Boolean(submission) &&
-    submission?.status === "Draft" &&
-    !saving &&
-    (
-      !primaryEvidence?.required ||
-      Boolean(uploadedEvidence)
-    );
 
   return (
     <div
       style={{
+        maxWidth: "1000px",
         color: "#1e293b",
-        maxWidth: "900px",
       }}
     >
       {/* ======================================================
@@ -367,15 +414,20 @@ const MetricSubmission = () => {
           )
         }
         style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "7px",
           border: "none",
           background: "transparent",
           color: "#2563eb",
           cursor: "pointer",
           fontWeight: 600,
-          marginBottom: "20px",
+          marginBottom: "18px",
         }}
       >
-        ← Back to Metric
+        <ArrowLeft size={17} />
+
+        Back to Metric
       </button>
 
       {/* ======================================================
@@ -384,462 +436,691 @@ const MetricSubmission = () => {
 
       <div
         style={{
-          marginBottom: "24px",
+          background:
+            "linear-gradient(135deg, #173b72, #214d8f)",
+          borderRadius: "14px",
+          padding: "26px 28px",
+          color: "#ffffff",
+          marginBottom: "20px",
         }}
       >
-        <span
+        <div
           style={{
-            background: "#eff6ff",
-            color: "#2563eb",
-            padding: "7px 12px",
-            borderRadius: "7px",
+            fontSize: "11px",
+            letterSpacing: "1.5px",
             fontWeight: 700,
+            opacity: 0.8,
+            marginBottom: "7px",
           }}
         >
-          {metric.code}
-        </span>
+          METRIC SUBMISSION
+        </div>
 
         <h1
           style={{
-            margin: "14px 0 8px",
+            margin: 0,
+            fontSize: "25px",
           }}
         >
-          Create NAAC Submission
+          {metric?.code} - {metric?.title}
         </h1>
 
         <p
           style={{
-            color: "#64748b",
-            margin: 0,
+            margin: "8px 0 0",
+            opacity: 0.85,
+            fontSize: "14px",
           }}
         >
-          {metric.title}
+          Create and manage the submission
+          for this NAAC metric.
         </p>
       </div>
 
       {/* ======================================================
-          MESSAGES
+          ERROR
       ====================================================== */}
 
       {error && (
         <div
           style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "10px",
+            padding: "13px 15px",
             marginBottom: "16px",
-            padding: "12px 14px",
-            borderRadius: "8px",
+            border:
+              "1px solid #fecaca",
             background: "#fef2f2",
-            color: "#b91c1c",
+            color: "#991b1b",
+            borderRadius: "9px",
           }}
         >
-          {error}
+          <XCircle
+            size={18}
+            style={{
+              flexShrink: 0,
+            }}
+          />
+
+          <span>
+            {error}
+          </span>
         </div>
       )}
+
+      {/* ======================================================
+          SUCCESS
+      ====================================================== */}
 
       {message && (
         <div
           style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "10px",
+            padding: "13px 15px",
             marginBottom: "16px",
-            padding: "12px 14px",
-            borderRadius: "8px",
+            border:
+              "1px solid #bbf7d0",
             background: "#f0fdf4",
             color: "#166534",
+            borderRadius: "9px",
           }}
         >
-          {message}
+          <CheckCircle size={18} />
+
+          <span>
+            {message}
+          </span>
         </div>
       )}
 
       {/* ======================================================
-          1. ENTER METRIC DATA
+          METRIC INFORMATION
       ====================================================== */}
 
-      <div
-        className="panel"
-        style={{
-          background: "#ffffff",
-          border: "1px solid #e2e8f0",
-          borderRadius: "12px",
-          padding: "24px",
-          marginBottom: "20px",
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>
-          1. Enter Metric Data
-        </h2>
-
-        <label
+      <div style={cardStyle}>
+        <h2
           style={{
-            display: "block",
-            fontWeight: 600,
-            marginBottom: "8px",
+            marginTop: 0,
+            fontSize: "18px",
           }}
         >
-          Percentage Value
-        </label>
-
-        <input
-          type="number"
-          min="0"
-          max="100"
-          step="0.01"
-          value={value}
-          onChange={(event) =>
-            setValue(event.target.value)
-          }
-          placeholder="Enter percentage, e.g. 70"
-          disabled={Boolean(submission)}
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            padding: "12px",
-            border: "1px solid #cbd5e1",
-            borderRadius: "8px",
-            fontSize: "15px",
-          }}
-        />
-
-        <p
-          style={{
-            marginTop: "8px",
-            color: "#64748b",
-            fontSize: "13px",
-          }}
-        >
-          Demo example:
-          700 out of 1000 students = 70%.
-        </p>
-
-        {!submission && (
-          <button
-            onClick={
-              handleCreateSubmission
-            }
-            disabled={saving}
-            style={{
-              marginTop: "14px",
-              padding: "11px 18px",
-              border: "none",
-              borderRadius: "8px",
-              background: "#2563eb",
-              color: "#ffffff",
-              cursor: saving
-                ? "not-allowed"
-                : "pointer",
-              fontWeight: 600,
-            }}
-          >
-            {saving
-              ? "Creating..."
-              : "Create Draft Submission"}
-          </button>
-        )}
-
-        {submission && (
-          <div
-            style={{
-              marginTop: "16px",
-              padding: "12px",
-              background: "#f8fafc",
-              borderRadius: "8px",
-              color: "#475569",
-              fontSize: "14px",
-            }}
-          >
-            Draft Submission ID:
-            <strong>
-              {" "}
-              #{submission.id}
-            </strong>
-          </div>
-        )}
-      </div>
-
-      {/* ======================================================
-          2. UPLOAD EVIDENCE
-      ====================================================== */}
-
-      <div
-        className="panel"
-        style={{
-          background: "#ffffff",
-          border: "1px solid #e2e8f0",
-          borderRadius: "12px",
-          padding: "24px",
-          marginBottom: "20px",
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>
-          2. Upload Evidence
-        </h2>
-
-        {primaryEvidence ? (
-          <>
-            <div
-              style={{
-                background: "#f8fafc",
-                borderRadius: "8px",
-                padding: "14px",
-                marginBottom: "16px",
-              }}
-            >
-              <strong>
-                {primaryEvidence.title}
-              </strong>
-
-              {primaryEvidence.description && (
-                <p
-                  style={{
-                    margin:
-                      "6px 0 0",
-                    color: "#64748b",
-                    fontSize: "13px",
-                  }}
-                >
-                  {
-                    primaryEvidence.description
-                  }
-                </p>
-              )}
-
-              <div
-                style={{
-                  color: "#64748b",
-                  fontSize: "13px",
-                  marginTop: "8px",
-                }}
-              >
-                Allowed:
-                {" "}
-                {primaryEvidence.allowed_file_types ||
-                  "Not specified"}
-              </div>
-
-              <div
-                style={{
-                  color: "#64748b",
-                  fontSize: "13px",
-                  marginTop: "4px",
-                }}
-              >
-                Maximum files:
-                {" "}
-                {primaryEvidence.max_files ||
-                  5}
-              </div>
-            </div>
-
-            <input
-              type="file"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-              disabled={
-                !submission ||
-                uploading ||
-                submission.status !==
-                  "Draft"
-              }
-              onChange={(event) =>
-                setFile(
-                  event.target.files?.[0] ||
-                    null
-                )
-              }
-            />
-
-            {file && (
-              <div
-                style={{
-                  marginTop: "10px",
-                  padding: "10px 12px",
-                  background: "#f8fafc",
-                  borderRadius: "7px",
-                  fontSize: "13px",
-                  color: "#475569",
-                }}
-              >
-                Selected:
-                {" "}
-                <strong>
-                  {file.name}
-                </strong>
-              </div>
-            )}
-
-            <div
-              style={{
-                marginTop: "14px",
-              }}
-            >
-              <button
-                onClick={handleUpload}
-                disabled={
-                  !submission ||
-                  !file ||
-                  uploading ||
-                  submission.status !==
-                    "Draft"
-                }
-                style={{
-                  padding:
-                    "10px 16px",
-                  border: "none",
-                  borderRadius: "8px",
-                  background:
-                    !submission ||
-                    !file ||
-                    uploading
-                      ? "#cbd5e1"
-                      : "#0f766e",
-                  color: "#ffffff",
-                  cursor:
-                    !submission ||
-                    !file ||
-                    uploading
-                      ? "not-allowed"
-                      : "pointer",
-                  fontWeight: 600,
-                }}
-              >
-                {uploading
-                  ? "Uploading..."
-                  : "Upload Evidence"}
-              </button>
-            </div>
-
-            {uploadedEvidence && (
-              <div
-                style={{
-                  marginTop: "16px",
-                  padding: "12px",
-                  background: "#f0fdf4",
-                  border:
-                    "1px solid #bbf7d0",
-                  borderRadius: "8px",
-                  color: "#166534",
-                }}
-              >
-                ✓ Evidence uploaded:
-                {" "}
-                <strong>
-                  {uploadedEvidence.title}
-                </strong>
-              </div>
-            )}
-          </>
-        ) : (
-          <div
-            style={{
-              padding: "20px",
-              textAlign: "center",
-              color: "#64748b",
-              border:
-                "1px dashed #cbd5e1",
-              borderRadius: "8px",
-            }}
-          >
-            No evidence requirement configured
-            for this metric.
-          </div>
-        )}
-      </div>
-
-      {/* ======================================================
-          3. SUBMIT
-      ====================================================== */}
-
-      <div
-        className="panel"
-        style={{
-          background: "#ffffff",
-          border: "1px solid #e2e8f0",
-          borderRadius: "12px",
-          padding: "24px",
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>
-          3. Submit
+          Metric Information
         </h2>
 
         <div
           style={{
-            marginBottom: "14px",
-            color: "#64748b",
+            background: "#f8fafc",
+            border:
+              "1px solid #e2e8f0",
+            borderRadius: "9px",
+            padding: "15px",
           }}
         >
-          Current status:
-          {" "}
-          <strong
+          <div
             style={{
-              color: "#1e293b",
+              fontWeight: 700,
+              marginBottom: "6px",
             }}
           >
-            {submission?.status ||
-              "Not Created"}
-          </strong>
+            {metric?.code}
+          </div>
+
+          <div
+            style={{
+              color: "#475569",
+              fontSize: "13px",
+            }}
+          >
+            {metric?.description ||
+              metric?.title}
+          </div>
         </div>
+      </div>
 
-        {primaryEvidence?.required &&
-          !uploadedEvidence &&
-          submission && (
-            <p
-              style={{
-                color: "#b45309",
-                fontSize: "13px",
-                marginBottom: "14px",
-              }}
-            >
-              Required evidence must be uploaded
-              before submission.
-            </p>
-          )}
+      {/* ======================================================
+          EVIDENCE REQUIREMENTS
 
-        <button
-          onClick={handleSubmit}
-          disabled={!canSubmit}
+          INFORMATION ONLY.
+          NO FILE UPLOAD HERE.
+      ====================================================== */}
+
+      <div style={cardStyle}>
+        <h2
           style={{
-            padding: "11px 20px",
-            border: "none",
-            borderRadius: "8px",
-            background: canSubmit
-              ? "#2563eb"
-              : "#cbd5e1",
-            color: "#ffffff",
-            cursor: canSubmit
-              ? "pointer"
-              : "not-allowed",
-            fontWeight: 600,
+            marginTop: 0,
+            fontSize: "18px",
           }}
         >
-          {saving
-            ? "Submitting..."
-            : "Submit for Review"}
-        </button>
+          Evidence Requirements
+        </h2>
 
-        {submission?.status ===
-          "Submitted" && (
-          <button
-            onClick={() =>
-              navigate(
-                "/submissions"
-              )
-            }
+        <p
+          style={{
+            color: "#64748b",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          These are the evidence requirements
+          configured for this metric. Actual
+          evidence files are uploaded from the
+          Documents & Evidence section after
+          the draft is created.
+        </p>
+
+        {evidenceRequirements.length ===
+        0 ? (
+          <div
             style={{
-              marginLeft: "10px",
-              padding: "11px 20px",
+              padding: "14px",
+              background: "#fffbeb",
               border:
-                "1px solid #cbd5e1",
-              borderRadius: "8px",
-              background: "#ffffff",
-              color: "#334155",
-              cursor: "pointer",
-              fontWeight: 600,
+                "1px solid #fde68a",
+              borderRadius: "9px",
+              color: "#92400e",
             }}
           >
-            Go to Submissions
-          </button>
+            No evidence requirement has
+            been configured for this metric.
+          </div>
+        ) : (
+          evidenceRequirements.map(
+            (requirement) => (
+              <div
+                key={requirement.id}
+                style={{
+                  padding: "14px",
+                  marginBottom: "10px",
+                  background: "#eff6ff",
+                  border:
+                    "1px solid #dbeafe",
+                  borderRadius: "9px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    alignItems:
+                      "flex-start",
+                    gap: "12px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 700,
+                    }}
+                  >
+                    {requirement.title}
+                  </div>
+
+                  {requirement.required && (
+                    <span
+                      style={{
+                        padding:
+                          "4px 9px",
+                        borderRadius:
+                          "999px",
+                        background:
+                          "#fee2e2",
+                        color:
+                          "#b91c1c",
+                        fontSize:
+                          "10px",
+                        fontWeight:
+                          700,
+                        whiteSpace:
+                          "nowrap",
+                      }}
+                    >
+                      REQUIRED
+                    </span>
+                  )}
+                </div>
+
+                {requirement.description && (
+                  <div
+                    style={{
+                      marginTop: "6px",
+                      color: "#475569",
+                      fontSize: "13px",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {
+                      requirement.description
+                    }
+                  </div>
+                )}
+              </div>
+            )
+          )
         )}
       </div>
+
+      {/* ======================================================
+          ENTER METRIC DATA
+      ====================================================== */}
+
+      {!submission && (
+        <div style={cardStyle}>
+          <h2
+            style={{
+              marginTop: 0,
+              fontSize: "18px",
+            }}
+          >
+            Enter Metric Data
+          </h2>
+
+          <p
+            style={{
+              color: "#64748b",
+              fontSize: "13px",
+              lineHeight: 1.6,
+            }}
+          >
+            Enter the value for this metric.
+            A draft submission will be created
+            before evidence is uploaded.
+          </p>
+
+          <input
+            type="number"
+            min="0"
+            max="100"
+            value={value}
+            onChange={(event) =>
+              setValue(
+                event.target.value
+              )
+            }
+            placeholder="Enter value (0-100)"
+            style={inputStyle}
+          />
+
+          <div
+            style={{
+              marginTop: "18px",
+              display: "flex",
+              justifyContent:
+                "flex-end",
+            }}
+          >
+            <button
+              onClick={
+                handleCreateSubmission
+              }
+              disabled={saving}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "11px 19px",
+                border: "none",
+                borderRadius: "8px",
+                background: saving
+                  ? "#94a3b8"
+                  : "#2563eb",
+                color: "#ffffff",
+                cursor: saving
+                  ? "not-allowed"
+                  : "pointer",
+                fontWeight: 700,
+              }}
+            >
+              <FileText size={17} />
+
+              {saving
+                ? "Creating Draft..."
+                : "Create Draft Submission"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================
+          CREATED SUBMISSION
+      ====================================================== */}
+
+      {submission && (
+        <>
+          {/* ==================================================
+              DRAFT INFORMATION
+          ================================================== */}
+
+          <div style={cardStyle}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "9px",
+                marginBottom: "18px",
+              }}
+            >
+              <CheckCircle
+                size={22}
+                color="#16a34a"
+              />
+
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: "18px",
+                }}
+              >
+                Draft Submission Created
+              </h2>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(3, minmax(0, 1fr))",
+                gap: "10px",
+              }}
+            >
+              <MiniInfo
+                label="Submission"
+                value={`#${submission.id}`}
+              />
+
+              <MiniInfo
+                label="Metric"
+                value={
+                  metric?.code
+                }
+              />
+
+              <MiniInfo
+                label="Status"
+                value={
+                  submission.status
+                }
+              />
+            </div>
+          </div>
+
+          {/* ==================================================
+              EVIDENCE MANAGEMENT
+          ================================================== */}
+
+          <div style={cardStyle}>
+            <h2
+              style={{
+                marginTop: 0,
+                fontSize: "18px",
+              }}
+            >
+              Evidence Management
+            </h2>
+
+            <p
+              style={{
+                color: "#64748b",
+                fontSize: "13px",
+                lineHeight: 1.6,
+              }}
+            >
+              Your draft has been created.
+              Evidence is uploaded separately
+              through Documents & Evidence and
+              attached directly to this submission.
+            </p>
+
+            <div
+              style={{
+                padding: "14px",
+                marginTop: "12px",
+                background: "#eff6ff",
+                border:
+                  "1px solid #dbeafe",
+                borderRadius: "9px",
+                color: "#1e40af",
+                fontSize: "13px",
+              }}
+            >
+              <strong>
+                Submission #{submission.id}
+              </strong>{" "}
+              is ready for evidence upload.
+            </div>
+
+            <div
+              style={{
+                marginTop: "18px",
+                display: "flex",
+                justifyContent:
+                  "flex-end",
+              }}
+            >
+              <button
+                onClick={
+                  handleManageEvidence
+                }
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "11px 19px",
+                  border: "none",
+                  borderRadius: "8px",
+                  background: "#0f766e",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                }}
+              >
+                <UploadCloud
+                  size={17}
+                />
+
+                Manage Evidence
+              </button>
+            </div>
+          </div>
+
+          {/* ==================================================
+              SUBMIT FOR REVIEW
+          ================================================== */}
+
+          <div style={cardStyle}>
+            <h2
+              style={{
+                marginTop: 0,
+                fontSize: "18px",
+              }}
+            >
+              Submit for Review
+            </h2>
+
+            <p
+              style={{
+                color: "#64748b",
+                fontSize: "13px",
+                lineHeight: 1.6,
+              }}
+            >
+              After uploading the required
+              evidence through Documents &
+              Evidence, submit this draft for
+              review.
+            </p>
+
+            <div
+              style={{
+                padding: "13px",
+                marginTop: "12px",
+                background: "#f8fafc",
+                border:
+                  "1px solid #e2e8f0",
+                borderRadius: "8px",
+                color: "#475569",
+                fontSize: "13px",
+              }}
+            >
+              <strong>
+                Workflow:
+              </strong>{" "}
+              Draft → Evidence Upload →
+              Submit for Review → Reviewer
+            </div>
+
+            <div
+              style={{
+                marginTop: "18px",
+                display: "flex",
+                justifyContent:
+                  "flex-end",
+              }}
+            >
+              <button
+                onClick={
+                  handleSubmit
+                }
+                disabled={
+                  submitting ||
+                  !isEditableStatus(
+                    submission.status
+                  )
+                }
+                style={{
+                  padding: "11px 19px",
+                  border: "none",
+                  borderRadius: "8px",
+                  background:
+                    submitting ||
+                    !isEditableStatus(
+                      submission.status
+                    )
+                      ? "#cbd5e1"
+                      : "#173b72",
+                  color: "#ffffff",
+                  cursor:
+                    submitting ||
+                    !isEditableStatus(
+                      submission.status
+                    )
+                      ? "not-allowed"
+                      : "pointer",
+                  fontWeight: 700,
+                }}
+              >
+                {submitting
+                  ? "Submitting..."
+                  : "Submit for Review"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
+};
+
+// ============================================================
+// MINI INFO
+// ============================================================
+
+const MiniInfo = ({
+  label,
+  value,
+}) => (
+  <div
+    style={{
+      background: "#f8fafc",
+      borderRadius: "8px",
+      padding: "11px",
+    }}
+  >
+    <div
+      style={{
+        color: "#64748b",
+        fontSize: "11px",
+        marginBottom: "3px",
+      }}
+    >
+      {label}
+    </div>
+
+    <strong
+      style={{
+        fontSize: "14px",
+      }}
+    >
+      {value}
+    </strong>
+  </div>
+);
+
+// ============================================================
+// ERROR MESSAGE
+// ============================================================
+
+const getErrorMessage = (
+  error,
+  fallback
+) => {
+  const detail =
+    error?.response?.data?.detail;
+
+  if (
+    typeof detail === "string"
+  ) {
+    return detail;
+  }
+
+  if (
+    Array.isArray(detail)
+  ) {
+    return detail
+      .map(
+        (item) =>
+          item?.msg ||
+          String(item)
+      )
+      .join(", ");
+  }
+
+  if (
+    error?.message &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
+// ============================================================
+// STYLES
+// ============================================================
+
+const cardStyle = {
+  background: "#ffffff",
+  border:
+    "1px solid #e2e8f0",
+  borderRadius: "12px",
+  padding: "22px",
+  marginBottom: "18px",
+};
+
+const inputStyle = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "11px 13px",
+  border:
+    "1px solid #cbd5e1",
+  borderRadius: "8px",
+  background: "#ffffff",
+  color: "#1e293b",
+  fontSize: "14px",
+  outline: "none",
 };
 
 export default MetricSubmission;

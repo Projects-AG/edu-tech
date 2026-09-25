@@ -1,16 +1,13 @@
 import api from "./api";
-import { MOCK_DOCUMENTS } from "./mockData";
 
-export const documentService = {
+const documentService = {
   // ============================================================
-  // GET ALL DOCUMENTS
+  // GET DOCUMENTS
   // ============================================================
 
   getDocuments: async () => {
     try {
-      const response = await api.get(
-        "/documents"
-      );
+      const response = await api.get("/documents");
 
       console.log(
         "GET DOCUMENTS RESPONSE:",
@@ -21,16 +18,15 @@ export const documentService = {
     } catch (error) {
       console.error(
         "GET DOCUMENTS ERROR:",
-        error?.response?.data ||
-          error
+        error?.response?.data || error
       );
 
-      return MOCK_DOCUMENTS;
+      throw error;
     }
   },
 
   // ============================================================
-  // EXISTING DOCUMENT RECORD CREATION
+  // CREATE DOCUMENT
   // ============================================================
 
   uploadDocument: async (docData) => {
@@ -40,41 +36,28 @@ export const documentService = {
         docData
       );
 
-      console.log(
-        "UPLOAD DOCUMENT RESPONSE:",
-        response.data
-      );
-
       return response.data;
     } catch (error) {
       console.error(
         "UPLOAD DOCUMENT ERROR:",
-        error?.response?.data ||
-          error
+        error?.response?.data || error
       );
 
-      return {
-        id: `doc_${Date.now()}`,
-        ...docData,
-        status: "Submitted",
-        date: new Date()
-          .toISOString()
-          .split("T")[0],
-      };
+      throw error;
     }
   },
 
   // ============================================================
-  // REAL EVIDENCE FILE UPLOAD
+  // UPLOAD EVIDENCE
   // ============================================================
 
   uploadEvidence: async (
     file,
     submissionId,
-    title
+    title,
+    onUploadProgress
   ) => {
-    const formData =
-      new FormData();
+    const formData = new FormData();
 
     formData.append(
       "file",
@@ -94,17 +77,13 @@ export const documentService = {
     }
 
     try {
-      const response =
-        await api.post(
-          "/documents/upload",
-          formData,
-          {
-            headers: {
-              "Content-Type":
-                undefined,
-            },
-          }
-        );
+      const response = await api.post(
+        "/documents/upload",
+        formData,
+        {
+          onUploadProgress,
+        }
+      );
 
       console.log(
         "UPLOAD EVIDENCE RESPONSE:",
@@ -115,8 +94,100 @@ export const documentService = {
     } catch (error) {
       console.error(
         "UPLOAD EVIDENCE ERROR:",
-        error?.response?.data ||
-          error
+        error?.response?.data || error
+      );
+
+      throw error;
+    }
+  },
+
+  // ============================================================
+  // REPLACE EVIDENCE
+  // ============================================================
+
+  replaceEvidence: async (
+    documentId,
+    file,
+    onUploadProgress
+  ) => {
+    const formData = new FormData();
+
+    formData.append(
+      "file",
+      file
+    );
+
+    try {
+      const response = await api.put(
+        `/documents/${documentId}/replace`,
+        formData,
+        {
+          onUploadProgress,
+        }
+      );
+
+      console.log(
+        "REPLACE EVIDENCE RESPONSE:",
+        response.data
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error(
+        "REPLACE EVIDENCE ERROR:",
+        error?.response?.data || error
+      );
+
+      throw error;
+    }
+  },
+
+  // ============================================================
+  // PREVIEW EVIDENCE
+  // ============================================================
+
+  previewDocument: async (
+    documentId
+  ) => {
+    try {
+      const response = await api.get(
+        `/documents/${documentId}/preview`,
+        {
+          responseType: "blob",
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error(
+        "PREVIEW DOCUMENT ERROR:",
+        error?.response?.data || error
+      );
+
+      throw error;
+    }
+  },
+
+  // ============================================================
+  // DOWNLOAD EVIDENCE
+  // ============================================================
+
+  downloadDocument: async (
+    documentId
+  ) => {
+    try {
+      const response = await api.get(
+        `/documents/${documentId}/download`,
+        {
+          responseType: "blob",
+        }
+      );
+
+      return response;
+    } catch (error) {
+      console.error(
+        "DOWNLOAD DOCUMENT ERROR:",
+        error?.response?.data || error
       );
 
       throw error;

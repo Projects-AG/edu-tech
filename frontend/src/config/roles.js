@@ -1,18 +1,23 @@
-// Constants for the 7 Supported System Roles
+// frontend/src/config/roles.js
 
 export const ROLES = {
-  COORDINATOR: "Coordinator",
+  ADMIN: "Admin",
+  INSTITUTION_ADMIN: "Institution Admin",
+
   NAAC_COORDINATOR: "NAAC Coordinator",
   COMMITTEE_MEMBER: "Committee Member",
   DEPT_COORDINATOR: "Dept. Coordinator",
   REVIEWER: "Reviewer",
   DATA_APPROVER: "Data Approver",
   PRINCIPAL_DIRECTOR: "Principal / Director",
-  ADMIN: "Admin",
+
+  // Kept for backward compatibility if used anywhere
+  COORDINATOR: "Coordinator",
 };
 
 export const ALL_ROLES = [
   ROLES.ADMIN,
+  ROLES.INSTITUTION_ADMIN,
   ROLES.NAAC_COORDINATOR,
   ROLES.COMMITTEE_MEMBER,
   ROLES.DEPT_COORDINATOR,
@@ -21,56 +26,86 @@ export const ALL_ROLES = [
   ROLES.PRINCIPAL_DIRECTOR,
 ];
 
-// Helper to normalize role names from various backend or UI strings
+/**
+ * Normalize role names received from the backend.
+ */
 export const normalizeRole = (roleStr) => {
-  if (!roleStr) return ROLES.NAAC_COORDINATOR;
+  if (!roleStr) {
+    return ROLES.NAAC_COORDINATOR;
+  }
 
-  const cleaned = roleStr.trim();
+  const cleaned = String(roleStr).trim();
+  const lower = cleaned.toLowerCase();
 
+  // IMPORTANT:
+  // Check Institution Admin BEFORE generic Admin.
   if (
-    cleaned.includes("Admin") ||
-    cleaned.includes("Platform Administrator")
+    lower === "institution admin" ||
+    lower === "institutionadministrator" ||
+    lower === "institution administrator"
+  ) {
+    return ROLES.INSTITUTION_ADMIN;
+  }
+
+  // Platform Admin only
+  if (
+    lower === "admin" ||
+    lower === "platform admin" ||
+    lower === "platformadministrator" ||
+    lower === "platform administrator"
   ) {
     return ROLES.ADMIN;
   }
 
-  // IMPORTANT: Check NAAC Coordinator BEFORE generic Coordinator
   if (
-    cleaned === "NAAC Coordinator" ||
-    cleaned.toLowerCase() === "naac coordinator"
+    lower === "naac coordinator" ||
+    lower === "naac coordinator/admin"
   ) {
     return ROLES.NAAC_COORDINATOR;
   }
 
   if (
-    cleaned.includes("Dept") ||
-    cleaned.includes("Department Coordinator")
+    lower === "committee member" ||
+    lower === "committee"
+  ) {
+    return ROLES.COMMITTEE_MEMBER;
+  }
+
+  if (
+    lower === "dept. coordinator" ||
+    lower === "dept coordinator" ||
+    lower === "department coordinator"
   ) {
     return ROLES.DEPT_COORDINATOR;
   }
 
-  if (cleaned.includes("Committee")) {
-    return ROLES.COMMITTEE_MEMBER;
-  }
-
-  if (cleaned.includes("Reviewer")) {
+  if (lower === "reviewer") {
     return ROLES.REVIEWER;
   }
 
-  if (cleaned.includes("Approver")) {
+  if (
+    lower === "data approver" ||
+    lower === "dataapproval"
+  ) {
     return ROLES.DATA_APPROVER;
   }
 
   if (
-    cleaned.includes("Principal") ||
-    cleaned.includes("Director")
+    lower === "principal / director" ||
+    lower === "principal/director" ||
+    lower === "principal" ||
+    lower === "director"
   ) {
     return ROLES.PRINCIPAL_DIRECTOR;
   }
 
-  if (cleaned === "Coordinator") {
+  if (lower === "coordinator") {
     return ROLES.COORDINATOR;
   }
 
+  // Preserve unknown roles instead of silently
+  // converting them to Admin.
   return cleaned;
 };
+
+export default ROLES;

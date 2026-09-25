@@ -20,12 +20,19 @@ import CriterionDetail from "../pages/CriterionDetail";
 import MetricDetail from "../pages/MetricDetail";
 import MetricSubmission from "../pages/MetricSubmission";
 import Documents from "../pages/Documents";
+import EvidenceUpload from "../pages/EvidenceUpload";
 import Submissions from "../pages/Submissions";
 import Review from "../pages/Review";
 import Reports from "../pages/Reports";
 import Notifications from "../pages/Notifications";
 import Institution from "../pages/Institution";
 import Unauthorized from "../pages/Unauthorized";
+
+// =========================================
+// REVIEWER PAGES
+// =========================================
+import ReviewerQueue from "../pages/Reviews/ReviewerQueue";
+import EvidenceReview from "../pages/Reviews/EvidenceReview";
 
 // =========================================
 // ADMIN PAGES
@@ -207,11 +214,21 @@ export const AppRoutes = () => {
 
         {/* =========================================
             DEPARTMENTS
+            ADMIN + INSTITUTION ADMIN
         ========================================= */}
 
         <Route
           path="/departments"
-          element={<Departments />}
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "Institution Admin",
+              ]}
+            >
+              <Departments />
+            </ProtectedRoute>
+          }
         />
 
         {/* =========================================
@@ -225,10 +242,6 @@ export const AppRoutes = () => {
 
         {/* =========================================
             CRITERION DETAIL
-
-            No criteria.view restriction here,
-            because NAAC Coordinator should be able
-            to open the accreditation workflow.
         ========================================= */}
 
         <Route
@@ -247,12 +260,6 @@ export const AppRoutes = () => {
 
         {/* =========================================
             METRIC SUBMISSION
-
-            Example:
-            /criteria/1/metrics/7/submit
-
-            1 = Criterion 1
-            7 = Metric 1.3.2
         ========================================= */}
 
         <Route
@@ -267,6 +274,11 @@ export const AppRoutes = () => {
         <Route
           path="/documents"
           element={<Documents />}
+        />
+
+        <Route
+          path="/documents/upload"
+          element={<EvidenceUpload />}
         />
 
         {/* =========================================
@@ -285,6 +297,39 @@ export const AppRoutes = () => {
         <Route
           path="/review"
           element={<Review />}
+        />
+
+        {/* =========================================
+            REVIEWER QUEUE
+            REVIEWER ONLY
+
+            Shows submissions available for review.
+        ========================================= */}
+
+        <Route
+          path="/reviewer/queue"
+          element={
+            <ProtectedRoute role="Reviewer">
+              <ReviewerQueue />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =========================================
+            EVIDENCE REVIEW
+            REVIEWER ONLY
+
+            Example:
+            /reviewer/submissions/12
+        ========================================= */}
+
+        <Route
+          path="/reviewer/submissions/:id"
+          element={
+            <ProtectedRoute role="Reviewer">
+              <EvidenceReview />
+            </ProtectedRoute>
+          }
         />
 
         {/* =========================================
@@ -315,13 +360,19 @@ export const AppRoutes = () => {
         />
 
         {/* =========================================
-            ADMIN - USER MANAGEMENT
+            USER MANAGEMENT
+            ADMIN + INSTITUTION ADMIN
         ========================================= */}
 
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute role="Admin">
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "Institution Admin",
+              ]}
+            >
               <UserManagement />
             </ProtectedRoute>
           }
@@ -329,6 +380,7 @@ export const AppRoutes = () => {
 
         {/* =========================================
             ADMIN - ROLES & PERMISSIONS
+            ADMIN ONLY
         ========================================= */}
 
         <Route
@@ -368,6 +420,7 @@ export const AppRoutes = () => {
 
         {/* =========================================
             ADMIN - SYSTEM SETTINGS
+            ADMIN ONLY
         ========================================= */}
 
         <Route

@@ -23,6 +23,7 @@ from app.models import (
     Criterion,
     Submission,
     Document,
+    DocumentVersion,
     Review,
     Notification,
     RegistrationRequest,

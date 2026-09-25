@@ -242,9 +242,18 @@ def get_submission_criterion_module(
 
         if criterion:
 
-            criterion_number = str(
+            raw_number = str(
                 criterion.number
-            ).split(".")[0]
+            ).strip()
+
+            # Support criterion values such as:
+            # C1, C2, C3
+            # 1, 2, 3
+            # 1.1, 2.1, etc.
+            if raw_number.upper().startswith("C"):
+                raw_number = raw_number[1:]
+
+            criterion_number = raw_number.split(".")[0]
 
     if (
         not criterion_number
@@ -585,6 +594,22 @@ def create_submission(
 
     institution_id = current_user.institution_id
 
+    # --------------------------------------------------------
+    # Validate requested institution
+    # --------------------------------------------------------
+
+    if (
+        sub_data.institution_id is not None
+        and sub_data.institution_id != institution_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You cannot create a submission "
+                "for another institution"
+            )
+        )
+
     # ========================================================
     # DEPARTMENT
     # ========================================================
@@ -749,7 +774,7 @@ def create_submission(
 
     submission = Submission(
         institution_id=institution_id,
-        cycle_id=None,
+        cycle_id=sub_data.cycle_id,
         criterion_id=sub_data.criterion_id,
         department_id=department_id,
         user_id=current_user.id,
@@ -1672,13 +1697,17 @@ def data_approve_submission(
 # DATA APPROVER - REQUEST CHANGES
 # ============================================================
 
+# ============================================================
+# DATA APPROVER - REJECT
+# ============================================================
+
 @router.post(
-    "/{sub_id}/data-request-changes",
+    "/{sub_id}/data-reject",
     response_model=WorkflowActionResponse
 )
-def data_request_changes(
+def data_reject_submission(
     sub_id: int,
-    change_data: SubmissionChangeRequest,
+    rejection_data: SubmissionRejectionRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -1695,8 +1724,8 @@ def data_request_changes(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                "Only Data Approvers can request "
-                "data changes"
+                "Only Data Approvers can reject "
+                "submissions"
             )
         )
 
@@ -1716,14 +1745,14 @@ def data_request_changes(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
                 "Only reviewer-approved submissions "
-                "can be sent for data changes"
+                "can be rejected by the Data Approver"
             )
         )
 
-    submission.status = "Changes Requested"
+    submission.status = "Rejected"
 
-    submission.change_request_reason = (
-        change_data.reason
+    submission.rejection_reason = (
+        rejection_data.reason
     )
 
     submission.updated_at = datetime.utcnow()
@@ -1739,10 +1768,9 @@ def data_request_changes(
         raise
 
     return {
-        "message": "Changes requested by Data Approver",
+        "message": "Submission rejected by Data Approver",
         "submission": submission,
     }
-
 
 # ============================================================
 # FINAL APPROVAL

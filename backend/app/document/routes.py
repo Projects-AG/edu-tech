@@ -16,13 +16,21 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_db, get_current_user
 from app.models import (
     Document,
+    DocumentVersion,
     User,
     Submission,
     Metric,
     EvidenceRequirement,
 )
-from app.schemas.document import DocumentCreate, DocumentResponse
-from app.services.document_service import create_document_record
+from app.schemas.document import (
+    DocumentCreate,
+    DocumentResponse,
+    DocumentVersionResponse,
+)
+from app.services.document_service import (
+    create_document_record,
+    replace_document_file,
+)
 
 
 router = APIRouter(
@@ -82,6 +90,56 @@ def get_documents(
     return query.order_by(
         Document.created_at.desc()
     ).all()
+
+
+# ============================================================
+# GET DOCUMENT VERSION HISTORY
+# ============================================================
+
+@router.get(
+    "/{document_id}/versions",
+    response_model=List[DocumentVersionResponse]
+)
+def get_document_versions(
+    document_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id
+        )
+        .first()
+    )
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    if (
+        current_user.institution_id
+        and document.institution_id
+        != current_user.institution_id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot view another institution's document"
+        )
+
+    return (
+        db.query(DocumentVersion)
+        .filter(
+            DocumentVersion.document_id
+            == document_id
+        )
+        .order_by(
+            DocumentVersion.version_number.desc()
+        )
+        .all()
+    )
 
 
 # ============================================================
@@ -377,3 +435,131 @@ async def upload_document(
     )
 
     return document
+
+
+# ============================================================
+# REPLACE DOCUMENT / CREATE NEW VERSION
+# ============================================================
+
+@router.put(
+    "/{document_id}/replace",
+    response_model=DocumentResponse
+)
+async def replace_document(
+    document_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+
+    if not file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="No file selected"
+        )
+
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id
+        )
+        .first()
+    )
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    if (
+        current_user.institution_id
+        and document.institution_id
+        != current_user.institution_id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot replace another institution's document"
+        )
+
+    original_name = Path(file.filename).name
+
+    extension = (
+        Path(original_name)
+        .suffix
+        .lower()
+        .replace(".", "")
+    )
+
+    if extension not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Unsupported file type. "
+                "Allowed types: "
+                + ", ".join(
+                    sorted(ALLOWED_EXTENSIONS)
+                )
+            )
+        )
+
+    folder_name = (
+        f"submission_{document.submission_id}"
+        if document.submission_id
+        else "general"
+    )
+
+    upload_dir = (
+        UPLOAD_ROOT
+        / folder_name
+    )
+
+    upload_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    stored_name = (
+        f"{uuid4().hex}.{extension}"
+    )
+
+    destination = (
+        upload_dir / stored_name
+    )
+
+    file_size = 0
+
+    with destination.open("wb") as buffer:
+
+        while True:
+
+            chunk = await file.read(
+                1024 * 1024
+            )
+
+            if not chunk:
+                break
+
+            buffer.write(chunk)
+
+            file_size += len(chunk)
+
+    relative_path = (
+        f"/uploads/evidence/"
+        f"{folder_name}/"
+        f"{stored_name}"
+    )
+
+    updated_document = replace_document_file(
+        db=db,
+        user=current_user,
+        document_id=document_id,
+        file_path=relative_path,
+        file_type=(
+            file.content_type
+            or extension
+        ),
+        file_size=file_size,
+    )
+
+    return updated_document
