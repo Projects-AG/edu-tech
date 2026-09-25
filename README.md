@@ -1,77 +1,58 @@
-# NAAC Platform — Foundation API (FastAPI)
+# EduVerse - NAAC Accreditation Management System
 
-Phase 1 (Foundation) implementation: auth, scoped RBAC, institutions,
-departments, academic years, file uploads, audit logs, and a basic
-dashboard summary endpoint.
+EduVerse is a web-based NAAC Accreditation Management System designed to streamline the collection, submission, review, verification, and approval of accreditation data and supporting evidence.
 
-## Documentation & Architecture
+## Project Overview
 
-- [Development diagram](https://apliaglobal77-my.sharepoint.com/:i:/g/personal/aniket_apliaglobal_com/IQDOrVPz0-71RoNiOlCeTbAJAboWP8zyGnxZZDVTomXw6Ds?e=oHfWiC)
-- [NAAC modules](https://apliaglobal77-my.sharepoint.com/:t:/g/personal/aniket_apliaglobal_com/IQDrUgvd83AZQI0gcZwpixq1Afu51VrkT5X5zu0Zqxec-bw?e=RMfUqu)
-- [Edu-tech architecture](https://apliaglobal77-my.sharepoint.com/:i:/g/personal/aniket_apliaglobal_com/IQCeafdTgGNnQKnU_BjJRB4CAcqQTEjY6TCKljgUkchTT8Y?e=hhcjre)
-- [ER diagram (DrawSQL)](https://drawsql.app/draw?t=4c1c474e-e797-4bef-9080-03840901bf19&view=1)
+The system provides role-based workflows for different users involved in the NAAC accreditation process.
 
-## Setup
+## Technology Stack
 
-```bash
-python -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+### Frontend
 
-cp .env.example .env               # then edit DATABASE_URL / secrets
+- React.js
+- Vite
+- JavaScript
+- HTML5
+- CSS3
+- Axios
 
-# Create the MySQL database first, e.g.:
-#   mysql -u root -p -e "CREATE DATABASE naac_platform CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-alembic revision --autogenerate -m "init"
-alembic upgrade head
+### Backend
 
-uvicorn app.main:app --reload
-```
+- Python
+- FastAPI
+- SQLAlchemy
+- Alembic
+- JWT Authentication
 
-API docs: http://localhost:8000/docs (Swagger, auto-generated)
+### Database
 
-## Structure
+- PostgreSQL
 
-```
-app/
-  core/       settings, JWT + password hashing
-  db/         SQLAlchemy engine/session/base
-  models/     ORM models (Institution, Department, User, RoleAssignment, ...)
-  schemas/    Pydantic request/response schemas
-  deps/       get_current_user, require_roles (scoped RBAC dependency)
-  api/v1/     routers: auth, institutions, departments, academic_years,
-              files, audit_log, dashboard
-  main.py     FastAPI app + router wiring
-alembic/      migrations
-```
+## User Roles
 
-## Auth flow
+- Admin
+- Institution Admin
+- NAAC Coordinator
+- Committee Member
+- Dept. Coordinator
+- Reviewer
+- Data Approver
+- Principal / Director
 
-1. `POST /api/v1/auth/register` — create a user under an institution
-   (create the `Institution` first via `POST /api/v1/institutions`,
-   which requires an ADMIN role — seed your first admin + institution
-   directly in the DB for bootstrapping).
-2. Assign roles by inserting rows into `role_assignments` (no endpoint yet —
-   add a `RoleAssignmentsController` in Phase 1 hardening, or seed via SQL
-   for now).
-3. `POST /api/v1/auth/login` — returns `access_token` + `refresh_token`.
-4. Use `Authorization: Bearer <access_token>` on all other endpoints.
-5. `POST /api/v1/auth/refresh` — exchange a valid refresh token for a new
-   access token.
+## NAAC Submission Workflow
 
-## Scoped RBAC — important note
-
-`require_roles(...)` (in `app/deps/deps.py`) proves a user holds a role
-*somewhere* in the system. For department- or (from Phase 2) criterion-scoped
-actions, add an explicit check against `RoleAssignment.scope_type` /
-`department_id` in the route handler itself — role name alone is not enough
-to prove access to a *specific* department's data. See the domain model spec
-(section 3, Roles & Permissions Matrix) for the intended scoping rules.
-
-## Not yet implemented (intentionally, per Phase 1 scope)
-
-- Role assignment CRUD endpoints (seed manually for now)
-- S3/R2/MinIO file storage (currently writes to local disk — swap the
-  `files.py` router's local-write block for a `boto3` `upload_fileobj` call)
-- Refresh token revocation endpoint / logout
-- Phase 2+: Accreditation Cycle, Criteria, Key Indicators, Metrics, Evidence
+```text
+Draft
+   ↓
+Submitted
+   ↓
+Under Review
+   ↓
+Approved / Changes Requested / Rejected
+   ↓
+Data Approved
+   ↓
+Final Approval
+   ↓
+Final Submitted

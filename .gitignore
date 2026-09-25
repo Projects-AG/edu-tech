@@ -1,41 +1,74 @@
-# Dependencies
-node_modules/
-.venv/
-venv/
-env/
-
-# Environment
-.env
-
-# Build outputs
-dist/
-build/
-*.egg-info/
-
-# Python
+# =========================
+# Python / FastAPI Backend
+# =========================
 __pycache__/
 *.py[cod]
-*$py.class
 
-# IDE
+backend/venv/
+backend/.venv/
+venv/
+.venv/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# =========================
+# Environment / Secrets
+# =========================
+backend/.env
+.env
+.env.*
+!.env.example
+
+# =========================
+# Database
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# Node / React / Vite
+# =========================
+frontend/node_modules/
+node_modules/
+
+frontend/dist/
+dist/
+dist-ssr/
+build/
+.vite/
+
+*.local
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =========================
+# IDE / Editor
+# =========================
 .vscode/
+!.vscode/extensions.json
 .idea/
-*.swp
-*.swo
-*~
 
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# =========================
 # OS
+# =========================
 .DS_Store
 Thumbs.db
-
-# Storage
-storage/uploads/
-
-# Logs
-*.log
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-coverage/
+backend/uploads/

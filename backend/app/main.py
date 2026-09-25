@@ -1,61 +1,142 @@
-import time
-import uuid
+from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from backend.app.core.config import settings
-from backend.app.api.v1 import (
-    auth,
-    institutions,
-    departments,
-    academic_years,
-    files,
-    audit_log,
-    dashboard,
+from app.auth.routes import router as auth_router
+from app.institution.routes import router as institution_router
+from app.accreditation.routes import router as accreditation_router
+from app.admin.routes import router as admin_router
+from app.coordinator.routes import router as coordinator_router
+from app.department.routes import router as department_router
+from app.faculty.routes import router as faculty_router
+
+from app.criteria.routes import router as criteria_router
+from app.section.routes import router as section_router
+from app.metric.routes import router as metric_router
+from app.evidence_requirement.routes import (
+    router as evidence_requirement_router
 )
+
+from app.submission.routes import router as submission_router
+from app.document.routes import router as document_router
+from app.review.routes import router as review_router
+from app.notification.routes import router as notification_router
+from app.committee.routes import router as committee_router
+from app.reviewer.routes import router as reviewer_router
+from app.principal.routes import router as principal_router
+from app.report.routes import router as report_router
+
+from app.institution_request.routes import (
+    router as institution_request_router
+)
+
 
 app = FastAPI(
-    title="NAAC Accreditation Platform",
-    description="Foundation API for managing NAAC accreditation workflows",
-    version="0.1.0",
+    title="EduVerse NAAC API",
+    description="Backend API for EduVerse NAAC Accreditation System",
+    version="1.0.0"
 )
 
-# ── CORS ───────────────────────────────────────────────────────────────
+
+# ============================================================
+# STATIC FILES - EVIDENCE UPLOADS
+# ============================================================
+
+UPLOADS_DIR = (
+    Path(__file__).resolve().parent.parent
+    / "uploads"
+)
+
+UPLOADS_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+app.mount(
+    "/uploads",
+    StaticFiles(directory=str(UPLOADS_DIR)),
+    name="uploads"
+)
+
+
+# ============================================================
+# CORS CONFIGURATION
+# ============================================================
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ── Request ID + Timing Middleware ─────────────────────────────────────
-@app.middleware("http")
-async def request_middleware(request: Request, call_next):
-    request_id = str(uuid.uuid4())
-    request.state.request_id = request_id
+# ============================================================
+# ROUTES
+# ============================================================
 
-    start = time.perf_counter()
-    response = await call_next(request)
-    elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
+# ------------------------------------------------------------
+# Core Authentication & Institution
+# ------------------------------------------------------------
 
-    response.headers["X-Request-ID"] = request_id
-    response.headers["X-Response-Time"] = f"{elapsed_ms}ms"
-    return response
+app.include_router(auth_router)
+app.include_router(institution_router)
 
 
-# ── Routers ────────────────────────────────────────────────────────────
-app.include_router(auth.router, prefix="/api/v1")
-app.include_router(institutions.router, prefix="/api/v1")
-app.include_router(departments.router, prefix="/api/v1")
-app.include_router(academic_years.router, prefix="/api/v1")
-app.include_router(files.router, prefix="/api/v1")
-app.include_router(audit_log.router, prefix="/api/v1")
-app.include_router(dashboard.router, prefix="/api/v1")
+# ------------------------------------------------------------
+# Roles & Accreditation Management
+# ------------------------------------------------------------
+
+app.include_router(accreditation_router)
+app.include_router(admin_router)
+app.include_router(coordinator_router)
+app.include_router(department_router)
+app.include_router(faculty_router)
 
 
-@app.get("/health", tags=["health"])
-def health():
-    return {"status": "ok"}
+# ------------------------------------------------------------
+# NAAC Criteria Structure
+# ------------------------------------------------------------
+
+app.include_router(criteria_router)
+app.include_router(section_router)
+app.include_router(metric_router)
+app.include_router(evidence_requirement_router)
+
+
+# ------------------------------------------------------------
+# Submissions & Documents
+# ------------------------------------------------------------
+
+app.include_router(submission_router)
+app.include_router(document_router)
+
+
+# ------------------------------------------------------------
+# Review & Approval
+# ------------------------------------------------------------
+
+app.include_router(review_router)
+app.include_router(notification_router)
+app.include_router(committee_router)
+app.include_router(reviewer_router)
+app.include_router(principal_router)
+
+
+# ------------------------------------------------------------
+# Reports
+# ------------------------------------------------------------
+
+app.include_router(report_router)
+
+
+# ------------------------------------------------------------
+# Institution Registration Requests
+# ------------------------------------------------------------
+
+app.include_router(
+    institution_request_router
+)

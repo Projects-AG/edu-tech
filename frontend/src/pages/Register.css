@@ -1,0 +1,1349 @@
+/* =========================================================
+   EDUVERSE NAAC — REGISTRATION PAGE
+========================================================= */
+
+.register-page {
+  min-height: 100vh;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 48% 52%;
+  background: #f6f8fc;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  color: #111827;
+}
+
+
+/* =========================================================
+   LEFT BRAND SECTION
+========================================================= */
+
+.register-brand-section {
+  position: relative;
+  min-height: 100vh;
+  padding: 42px 55px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+
+  background:
+    linear-gradient(
+      135deg,
+      #07152f 0%,
+      #0b1b3a 48%,
+      #101d42 100%
+    );
+
+  color: white;
+}
+
+.register-brand-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+
+  background-image:
+    linear-gradient(
+      rgba(255, 255, 255, 0.025) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.025) 1px,
+      transparent 1px
+    );
+
+  background-size: 42px 42px;
+  pointer-events: none;
+}
+
+.register-brand-section::after {
+  content: "";
+  position: absolute;
+
+  width: 420px;
+  height: 420px;
+
+  right: -180px;
+  bottom: -170px;
+
+  border-radius: 50%;
+
+  background: rgba(99, 102, 241, 0.13);
+
+  filter: blur(10px);
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   BRAND CONTENT
+========================================================= */
+
+.register-brand-content {
+  position: relative;
+  z-index: 2;
+}
+
+
+/* =========================================================
+   LOGO
+========================================================= */
+
+.register-logo {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.register-logo-icon {
+  width: 45px;
+  height: 45px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #667eea,
+      #7c5cff
+    );
+
+  font-size: 23px;
+  font-weight: 800;
+
+  box-shadow:
+    0 8px 25px rgba(79, 70, 229, 0.35);
+}
+
+.register-logo h2 {
+  margin: 0;
+
+  font-size: 24px;
+  font-weight: 750;
+
+  letter-spacing: -0.5px;
+}
+
+.register-logo span {
+  display: block;
+
+  margin-top: 2px;
+
+  font-size: 9px;
+  font-weight: 700;
+
+  letter-spacing: 1.5px;
+
+  color: #94a3c7;
+}
+
+
+/* =========================================================
+   BRAND MAIN CONTENT
+========================================================= */
+
+.register-brand-main {
+  position: relative;
+  z-index: 2;
+
+  margin-top: 90px;
+
+  max-width: 600px;
+}
+
+.register-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 8px 13px;
+
+  border: 1px solid rgba(148, 163, 184, 0.2);
+
+  border-radius: 30px;
+
+  background: rgba(255, 255, 255, 0.04);
+
+  font-size: 10px;
+  font-weight: 700;
+
+  letter-spacing: 1px;
+
+  color: #b8c4df;
+}
+
+.badge-dot {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background: #818cf8;
+
+  box-shadow:
+    0 0 10px rgba(129, 140, 248, 0.8);
+}
+
+
+/* =========================================================
+   BRAND HEADING
+========================================================= */
+
+.register-brand-main h1 {
+  margin: 25px 0 18px;
+
+  font-size: clamp(42px, 4vw, 62px);
+
+  line-height: 1.08;
+
+  letter-spacing: -2px;
+
+  color: #ffffff;
+}
+
+.register-brand-main h1 span {
+  background:
+    linear-gradient(
+      90deg,
+      #a5b4fc,
+      #818cf8
+    );
+
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.register-brand-main > p {
+  max-width: 510px;
+
+  margin: 0;
+
+  font-size: 16px;
+
+  line-height: 1.7;
+
+  color: #aebbd5;
+}
+
+
+/* =========================================================
+   FEATURES
+========================================================= */
+
+.register-features {
+  margin-top: 42px;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 18px;
+}
+
+.register-feature {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 13px;
+}
+
+.feature-icon {
+  width: 25px;
+  height: 25px;
+
+  min-width: 25px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: rgba(129, 140, 248, 0.12);
+
+  color: #a5b4fc;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.register-feature strong {
+  display: block;
+
+  font-size: 13px;
+
+  color: #e8edf8;
+}
+
+.register-feature p {
+  margin: 3px 0 0;
+
+  font-size: 11px;
+
+  line-height: 1.5;
+
+  color: #8997b5;
+}
+
+
+/* =========================================================
+   INFORMATION CARD
+========================================================= */
+
+.register-info-card {
+  position: relative;
+  z-index: 2;
+
+  margin-top: 40px;
+
+  max-width: 500px;
+
+  display: flex;
+
+  gap: 18px;
+
+  padding: 20px;
+
+  border: 1px solid rgba(148, 163, 184, 0.12);
+
+  border-radius: 15px;
+
+  background: rgba(255, 255, 255, 0.045);
+
+  backdrop-filter: blur(10px);
+}
+
+.info-number {
+  font-size: 25px;
+
+  font-weight: 800;
+
+  color: #818cf8;
+}
+
+.register-info-card span {
+  display: block;
+
+  font-size: 9px;
+
+  font-weight: 700;
+
+  letter-spacing: 1px;
+
+  color: #7f8cab;
+}
+
+.register-info-card strong {
+  display: block;
+
+  margin-top: 4px;
+
+  font-size: 13px;
+
+  color: #ffffff;
+}
+
+.register-info-card p {
+  margin: 6px 0 0;
+
+  font-size: 11px;
+
+  line-height: 1.5;
+
+  color: #8997b5;
+}
+
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.register-footer {
+  position: relative;
+
+  z-index: 2;
+
+  font-size: 10px;
+
+  color: #667590;
+}
+
+
+/* =========================================================
+   RIGHT FORM SECTION
+========================================================= */
+
+.register-form-section {
+  min-height: 100vh;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: 40px 48px;
+
+  overflow-y: auto;
+
+  background: #f8fafc;
+}
+
+
+/* =========================================================
+   FORM CARD
+========================================================= */
+
+.register-card {
+  width: 100%;
+
+  max-width: 570px;
+
+  padding: 38px 42px;
+
+  border: 1px solid #e6e9f0;
+
+  border-radius: 20px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 18px 50px rgba(15, 23, 42, 0.07);
+}
+
+
+/* =========================================================
+   FORM HEADER
+========================================================= */
+
+.register-card-header {
+  margin-bottom: 27px;
+}
+
+.form-step {
+  display: inline-block;
+
+  padding: 6px 10px;
+
+  border-radius: 6px;
+
+  background: #eef2ff;
+
+  color: #4f46e5;
+
+  font-size: 9px;
+
+  font-weight: 800;
+
+  letter-spacing: 1px;
+}
+
+.register-card-header h1 {
+  margin: 14px 0 7px;
+
+  color: #111827;
+
+  font-size: 28px;
+
+  line-height: 1.2;
+
+  letter-spacing: -0.8px;
+}
+
+.register-card-header p {
+  margin: 0;
+
+  color: #7b8497;
+
+  font-size: 13px;
+
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   ERROR / ALERT
+========================================================= */
+
+.register-alert {
+  margin-bottom: 20px;
+
+  padding: 12px 14px;
+
+  border-radius: 9px;
+
+  font-size: 12px;
+
+  line-height: 1.5;
+}
+
+.register-alert.error {
+  border: 1px solid #fecaca;
+
+  background: #fef2f2;
+
+  color: #b91c1c;
+}
+
+.register-alert.success {
+  border: 1px solid #bbf7d0;
+
+  background: #f0fdf4;
+
+  color: #15803d;
+}
+
+
+/* =========================================================
+   SECTION TITLES
+========================================================= */
+
+.form-section-title {
+  margin-bottom: 15px;
+
+  color: #374151;
+
+  font-size: 12px;
+
+  font-weight: 800;
+
+  letter-spacing: 0.1px;
+}
+
+.institution-title {
+  margin-top: 25px;
+}
+
+
+/* =========================================================
+   FORM ROW
+========================================================= */
+
+.form-row {
+  display: flex;
+
+  gap: 14px;
+
+  width: 100%;
+}
+
+
+/* =========================================================
+   FORM GROUP
+========================================================= */
+
+.form-group {
+  flex: 1;
+
+  min-width: 0;
+
+  margin-bottom: 17px;
+}
+
+.form-group label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #374151;
+
+  font-size: 11px;
+
+  font-weight: 700;
+}
+
+.form-group label span {
+  color: #ef4444;
+}
+
+
+/* =========================================================
+   INPUTS
+========================================================= */
+
+.form-group input {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  height: 44px;
+
+  padding: 0 13px;
+
+  border: 1px solid #dfe3eb;
+
+  border-radius: 9px;
+
+  outline: none;
+
+  background: #fbfcfe;
+
+  color: #111827;
+
+  font-family: inherit;
+
+  font-size: 12px;
+
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background 0.2s;
+}
+
+.form-group input::placeholder {
+  color: #a3a9b7;
+}
+
+.form-group input:hover {
+  border-color: #cbd5e1;
+
+  background: #ffffff;
+}
+
+.form-group input:focus {
+  border-color: #6366f1;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.08);
+}
+
+.form-group input:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.65;
+
+  background: #f1f5f9;
+}
+
+
+/* =========================================================
+   SELECT DROPDOWNS
+========================================================= */
+
+.form-group select {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  height: 44px;
+
+  padding: 0 38px 0 13px;
+
+  border: 1px solid #dfe3eb;
+
+  border-radius: 9px;
+
+  outline: none;
+
+  background-color: #fbfcfe;
+
+  color: #111827;
+
+  font-family: inherit;
+
+  font-size: 12px;
+
+  cursor: pointer;
+
+  appearance: none;
+
+  -webkit-appearance: none;
+
+  background-image:
+    linear-gradient(
+      45deg,
+      transparent 50%,
+      #64748b 50%
+    ),
+    linear-gradient(
+      135deg,
+      #64748b 50%,
+      transparent 50%
+    );
+
+  background-position:
+    calc(100% - 17px) 18px,
+    calc(100% - 12px) 18px;
+
+  background-size:
+    5px 5px,
+    5px 5px;
+
+  background-repeat: no-repeat;
+
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background-color 0.2s;
+}
+
+.form-group select:hover {
+  border-color: #cbd5e1;
+
+  background-color: #ffffff;
+}
+
+.form-group select:focus {
+  border-color: #6366f1;
+
+  background-color: #ffffff;
+
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.08);
+}
+
+.form-group select:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.65;
+
+  background-color: #f1f5f9;
+}
+
+.form-group select option {
+  color: #111827;
+
+  background: #ffffff;
+}
+
+
+/* =========================================================
+   REQUEST NEW INSTITUTION
+========================================================= */
+
+.request-institution-link {
+  display: inline-flex;
+
+  align-items: center;
+
+  margin: -3px 0 18px;
+
+  padding: 0;
+
+  border: none;
+
+  background: transparent;
+
+  color: #4f46e5;
+
+  font-family: inherit;
+
+  font-size: 11px;
+
+  font-weight: 700;
+
+  line-height: 1.5;
+
+  cursor: pointer;
+
+  text-decoration: none;
+
+  transition:
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.request-institution-link:hover {
+  color: #3730a3;
+
+  text-decoration: underline;
+}
+
+.request-institution-link:focus {
+  outline: none;
+
+  color: #3730a3;
+
+  text-decoration: underline;
+}
+
+
+/* =========================================================
+   CHECKBOX
+========================================================= */
+
+.register-checkbox {
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 9px;
+
+  margin: 9px 0 22px;
+}
+
+.register-checkbox input {
+  width: 15px;
+
+  height: 15px;
+
+  min-width: 15px;
+
+  margin-top: 1px;
+
+  accent-color: #4f46e5;
+
+  cursor: pointer;
+}
+
+.register-checkbox label {
+  color: #6b7280;
+
+  font-size: 10px;
+
+  line-height: 1.5;
+
+  cursor: pointer;
+}
+
+
+/* =========================================================
+   SUBMIT BUTTON
+========================================================= */
+
+.register-submit {
+  width: 100%;
+
+  height: 46px;
+
+  border: none;
+
+  border-radius: 9px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #4f46e5,
+      #6366f1
+    );
+
+  color: #ffffff;
+
+  font-family: inherit;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 7px 18px rgba(79, 70, 229, 0.22);
+
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s,
+    opacity 0.2s;
+}
+
+.register-submit:hover {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 10px 22px rgba(79, 70, 229, 0.28);
+}
+
+.register-submit:active {
+  transform: translateY(0);
+}
+
+.register-submit:disabled {
+  opacity: 0.75;
+
+  cursor: not-allowed;
+
+  transform: none;
+
+  box-shadow:
+    0 5px 14px rgba(79, 70, 229, 0.12);
+}
+
+
+/* =========================================================
+   LOGIN LINK
+========================================================= */
+
+.register-login-link {
+  margin-top: 20px;
+
+  text-align: center;
+
+  font-size: 11px;
+
+  color: #7b8497;
+}
+
+.register-login-link a {
+  color: #4f46e5;
+
+  font-weight: 700;
+
+  text-decoration: none;
+}
+
+.register-login-link a:hover {
+  text-decoration: underline;
+}
+
+
+/* =========================================================
+   PENDING NOTE
+========================================================= */
+
+.pending-note {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  margin-top: 22px;
+
+  padding-top: 18px;
+
+  border-top: 1px solid #edf0f5;
+}
+
+.pending-note span {
+  font-size: 13px;
+}
+
+.pending-note p {
+  margin: 0;
+
+  font-size: 9px;
+
+  line-height: 1.4;
+
+  color: #9299a8;
+}
+
+
+/* =========================================================
+   SUCCESS CARD
+========================================================= */
+
+.register-success-card {
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 16px;
+
+  margin-bottom: 24px;
+
+  padding: 20px;
+
+  border: 1px solid #86efac;
+
+  border-radius: 14px;
+
+  background: #f0fdf4;
+
+  color: #166534;
+}
+
+.success-icon {
+  width: 42px;
+
+  height: 42px;
+
+  min-width: 42px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #16a34a;
+
+  color: #ffffff;
+
+  font-size: 22px;
+
+  font-weight: 700;
+}
+
+.success-content {
+  flex: 1;
+}
+
+.success-content h3 {
+  margin: 0 0 6px;
+
+  font-size: 17px;
+
+  font-weight: 700;
+
+  color: #166534;
+}
+
+.success-content p {
+  margin: 0;
+
+  font-size: 13px;
+
+  line-height: 1.5;
+
+  color: #3f6650;
+}
+
+
+/* =========================================================
+   SUCCESS DETAILS
+========================================================= */
+
+.success-details {
+  display: flex;
+
+  gap: 12px;
+
+  margin-top: 16px;
+}
+
+.success-detail-item {
+  flex: 1;
+
+  padding: 12px 14px;
+
+  border: 1px solid #bbf7d0;
+
+  border-radius: 9px;
+
+  background: #ffffff;
+}
+
+.success-detail-item span {
+  display: block;
+
+  margin-bottom: 4px;
+
+  color: #64748b;
+
+  font-size: 10px;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.5px;
+}
+
+.success-detail-item strong {
+  font-size: 15px;
+
+  color: #166534;
+}
+
+.success-detail-item .pending-status {
+  color: #b45309;
+}
+
+
+/* =========================================================
+   SUCCESS NOTE
+========================================================= */
+
+.success-note {
+  margin-top: 14px;
+
+  padding: 11px 13px;
+
+  border: 1px solid #dcfce7;
+
+  border-radius: 8px;
+
+  background: #ffffff;
+
+  color: #475569;
+
+  font-size: 12px;
+
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   NEXT REGISTRATION STEPS
+========================================================= */
+
+.registration-next-step {
+  margin-bottom: 24px;
+
+  padding: 18px;
+
+  border: 1px solid #e2e8f0;
+
+  border-radius: 14px;
+
+  background: #ffffff;
+}
+
+.next-step-title {
+  margin-bottom: 16px;
+
+  color: #0f172a;
+
+  font-size: 14px;
+
+  font-weight: 700;
+}
+
+.registration-steps {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 14px;
+}
+
+.registration-step {
+  position: relative;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+}
+
+.step-circle {
+  width: 32px;
+
+  height: 32px;
+
+  min-width: 32px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #f1f5f9;
+
+  color: #64748b;
+
+  font-size: 13px;
+
+  font-weight: 700;
+}
+
+.registration-step.completed .step-circle {
+  background: #16a34a;
+
+  color: #ffffff;
+}
+
+.registration-step.active .step-circle {
+  background: #2563eb;
+
+  color: #ffffff;
+}
+
+.registration-step strong {
+  display: block;
+
+  color: #0f172a;
+
+  font-size: 13px;
+}
+
+.registration-step span {
+  display: block;
+
+  margin-top: 2px;
+
+  color: #64748b;
+
+  font-size: 12px;
+}
+
+
+/* =========================================================
+   RESPONSIVE — TABLET
+========================================================= */
+
+@media (max-width: 1100px) {
+
+  .register-page {
+    grid-template-columns: 44% 56%;
+  }
+
+  .register-brand-section {
+    padding: 38px 38px;
+  }
+
+  .register-form-section {
+    padding: 35px;
+  }
+
+  .register-card {
+    padding: 34px 35px;
+  }
+
+  .register-brand-main {
+    margin-top: 70px;
+  }
+
+  .register-brand-main h1 {
+    font-size: 45px;
+  }
+
+}
+
+
+/* =========================================================
+   RESPONSIVE — MOBILE
+========================================================= */
+
+@media (max-width: 850px) {
+
+  .register-page {
+    grid-template-columns: 1fr;
+  }
+
+  .register-brand-section {
+    min-height: auto;
+
+    padding: 35px 30px;
+  }
+
+  .register-brand-main {
+    margin-top: 55px;
+  }
+
+  .register-brand-main h1 {
+    font-size: 42px;
+  }
+
+  .register-info-card {
+    margin-bottom: 10px;
+  }
+
+  .register-footer {
+    margin-top: 40px;
+  }
+
+  .register-form-section {
+    min-height: auto;
+
+    padding: 30px 20px;
+  }
+
+  .register-card {
+    max-width: 650px;
+
+    padding: 32px 28px;
+  }
+
+}
+
+
+/* =========================================================
+   RESPONSIVE — SMALL MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+  .register-brand-section {
+    padding: 28px 22px;
+  }
+
+  .register-logo h2 {
+    font-size: 21px;
+  }
+
+  .register-brand-main {
+    margin-top: 45px;
+  }
+
+  .register-brand-main h1 {
+    font-size: 37px;
+
+    letter-spacing: -1.5px;
+  }
+
+  .register-brand-main > p {
+    font-size: 14px;
+  }
+
+  .register-features {
+    margin-top: 30px;
+
+    gap: 15px;
+  }
+
+  .register-info-card {
+    display: none;
+  }
+
+  .register-form-section {
+    padding: 20px 14px;
+  }
+
+  .register-card {
+    padding: 27px 21px;
+
+    border-radius: 15px;
+  }
+
+  .register-card-header h1 {
+    font-size: 24px;
+  }
+
+  .form-row {
+    flex-direction: column;
+
+    gap: 0;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  .success-details {
+    flex-direction: column;
+  }
+
+  .register-success-card {
+    padding: 16px;
+
+    gap: 12px;
+  }
+
+  .registration-next-step {
+    padding: 15px;
+  }
+
+}
+
+
+/* =========================================================
+   EXTRA SMALL DEVICES
+========================================================= */
+
+@media (max-width: 400px) {
+
+  .register-brand-main h1 {
+    font-size: 32px;
+  }
+
+  .register-card {
+    padding: 23px 17px;
+  }
+
+  .register-form-section {
+    padding: 15px 10px;
+  }
+
+}

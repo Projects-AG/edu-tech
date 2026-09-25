@@ -1,0 +1,1480 @@
+/* =====================================================
+   GLOBAL PAGE
+===================================================== */
+
+.select-role-page {
+  min-height: 100vh;
+  width: 100%;
+
+  background: #f8fafc;
+
+  color: #1e293b;
+
+  font-family:
+    Inter,
+    "Segoe UI",
+    Arial,
+    sans-serif;
+
+  -webkit-font-smoothing: antialiased;
+
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* =====================================================
+   HEADER
+===================================================== */
+
+.role-header {
+  width: 100%;
+  height: 66px;
+
+  background: #ffffff;
+
+  border-bottom: 1px solid #e5eaf0;
+
+  position: sticky;
+  top: 0;
+
+  z-index: 50;
+
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+
+.header-inner {
+  width: 100%;
+  max-width: 1280px;
+
+  height: 100%;
+
+  margin: 0 auto;
+
+  padding: 0 24px;
+
+  box-sizing: border-box;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+
+/* =====================================================
+   BRAND
+===================================================== */
+
+.brand-section {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+}
+
+
+.brand-logo {
+  width: 40px;
+  height: 40px;
+
+  border-radius: 11px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #1e3a8a 0%,
+      #2563eb 55%,
+      #4f46e5 100%
+    );
+
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow:
+    0 4px 10px rgba(37, 99, 235, 0.18);
+
+  flex-shrink: 0;
+}
+
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+}
+
+
+.brand-title-row {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+}
+
+
+.brand-name {
+  color: #07152e;
+
+  font-size: 18px;
+  font-weight: 800;
+
+  letter-spacing: -0.5px;
+
+  line-height: 1;
+}
+
+
+.naac-badge {
+  padding: 3px 7px;
+
+  color: #1d4ed8;
+  background: #eff6ff;
+
+  border: 1px solid #dbeafe;
+
+  border-radius: 5px;
+
+  font-size: 8px;
+  font-weight: 800;
+
+  letter-spacing: 0.7px;
+}
+
+
+.brand-subtitle {
+  margin: 4px 0 0;
+
+  color: #64748b;
+
+  font-size: 9px;
+  font-weight: 500;
+
+  line-height: 1;
+}
+
+
+/* =====================================================
+   HEADER RIGHT
+===================================================== */
+
+.header-right {
+  display: flex;
+  align-items: center;
+
+  gap: 20px;
+}
+
+
+.institution-info {
+  text-align: right;
+}
+
+
+.institution-name {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 6px;
+
+  color: #334155;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+
+.online-dot {
+  width: 5px;
+  height: 5px;
+
+  background: #10b981;
+
+  border-radius: 50%;
+}
+
+
+.institution-domain {
+  margin-top: 3px;
+
+  color: #94a3b8;
+
+  font-size: 8px;
+}
+
+
+.header-divider {
+  width: 1px;
+  height: 32px;
+
+  background: #e2e8f0;
+}
+
+
+/* =====================================================
+   USER SECTION
+===================================================== */
+
+.user-section {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+}
+
+
+.user-capsule {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 3px 10px 3px 4px;
+
+  background: #f8fafc;
+
+  border: 1px solid #e2e8f0;
+
+  border-radius: 999px;
+}
+
+
+.user-avatar {
+  width: 31px;
+  height: 31px;
+
+  border-radius: 50%;
+
+  background:
+    linear-gradient(
+      135deg,
+      #64748b,
+      #0f172a
+    );
+
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 9px;
+  font-weight: 800;
+}
+
+
+.user-details {
+  line-height: 1;
+}
+
+
+.user-name {
+  display: flex;
+  align-items: center;
+
+  gap: 5px;
+
+  color: #1e293b;
+
+  font-size: 9px;
+  font-weight: 700;
+}
+
+
+.sso-badge {
+  padding: 2px 5px;
+
+  color: #047857;
+  background: #d1fae5;
+
+  border-radius: 4px;
+
+  font-size: 6px;
+  font-weight: 800;
+
+  letter-spacing: 0.2px;
+}
+
+
+.active-session {
+  margin-top: 4px;
+
+  color: #94a3b8;
+
+  font-size: 7px;
+}
+
+
+.logout-button {
+  width: 32px;
+  height: 32px;
+
+  border: 1px solid #dbe3ec;
+
+  background: #ffffff;
+
+  color: #94a3b8;
+
+  border-radius: 9px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s;
+}
+
+
+.logout-button:hover {
+  background: #f8fafc;
+
+  color: #475569;
+
+  border-color: #cbd5e1;
+}
+
+
+/* =====================================================
+   MAIN
+===================================================== */
+
+.role-main {
+  width: 100%;
+  max-width: 1280px;
+
+  margin: 0 auto;
+
+  padding:
+    31px 24px 38px;
+
+  box-sizing: border-box;
+
+  flex: 1;
+}
+
+
+/* =====================================================
+   HERO
+===================================================== */
+
+.role-hero {
+  max-width: 760px;
+
+  margin: 0 auto 27px;
+
+  text-align: center;
+}
+
+
+.gateway-badge {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 6px;
+
+  padding: 6px 11px;
+
+  color: #1d4ed8;
+
+  background: #eff6ff;
+
+  border:
+    1px solid
+    #dbeafe;
+
+  border-radius: 999px;
+
+  font-size: 9px;
+  font-weight: 700;
+}
+
+
+.role-hero h1 {
+  margin:
+    10px 0 6px;
+
+  color: #07152e;
+
+  font-size: 31px;
+  font-weight: 800;
+
+  line-height: 1.15;
+
+  letter-spacing: -1px;
+}
+
+
+.hero-description {
+  margin: 0;
+
+  color: #475569;
+
+  font-size: 12px;
+
+  line-height: 1.5;
+}
+
+
+.hero-subdescription {
+  margin: 4px 0 0;
+
+  color: #94a3b8;
+
+  font-size: 8px;
+
+  line-height: 1.5;
+}
+
+
+/* =====================================================
+   ROLE CARDS CONTAINER
+===================================================== */
+
+.roles-container {
+  width: 100%;
+  max-width: 1160px;
+
+  margin: 0 auto;
+}
+
+
+.roles-row-three {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 16px;
+}
+
+
+.roles-row-two {
+  width: 71%;
+
+  margin:
+    14px auto 0;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 16px;
+}
+
+
+/* =====================================================
+   ROLE CARD
+===================================================== */
+
+.role-card {
+  min-height: 173px;
+
+  padding: 19px;
+
+  box-sizing: border-box;
+
+  background: #ffffff;
+
+  border:
+    1.5px solid
+    #e2e8f0;
+
+  border-radius: 15px;
+
+  cursor: pointer;
+
+  display: flex;
+  flex-direction: column;
+
+  justify-content: space-between;
+
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+
+.role-card:hover {
+  transform: translateY(-1px);
+}
+
+
+.role-blue:hover {
+  border-color: #3b82f6;
+
+  box-shadow:
+    0 8px 20px rgba(59, 130, 246, 0.09);
+}
+
+
+.role-indigo:hover {
+  border-color: #6366f1;
+
+  box-shadow:
+    0 8px 20px rgba(99, 102, 241, 0.09);
+}
+
+
+.role-teal:hover {
+  border-color: #14b8a6;
+
+  box-shadow:
+    0 8px 20px rgba(20, 184, 166, 0.09);
+}
+
+
+.role-purple:hover {
+  border-color: #a855f7;
+
+  box-shadow:
+    0 8px 20px rgba(168, 85, 247, 0.09);
+}
+
+
+.role-amber:hover {
+  border-color: #f59e0b;
+
+  box-shadow:
+    0 8px 20px rgba(245, 158, 11, 0.09);
+}
+
+
+/* =====================================================
+   SELECTED CARD
+===================================================== */
+
+.role-card-selected {
+  box-shadow:
+    0 7px 18px rgba(37, 99, 235, 0.09);
+}
+
+
+.role-blue.role-card-selected {
+  border-color: #3b82f6;
+
+  background: #f7faff;
+}
+
+
+.role-indigo.role-card-selected {
+  border-color: #6366f1;
+
+  background: #f8f8ff;
+}
+
+
+.role-teal.role-card-selected {
+  border-color: #14b8a6;
+
+  background: #f5fffd;
+}
+
+
+.role-purple.role-card-selected {
+  border-color: #a855f7;
+
+  background: #fcf8ff;
+}
+
+
+.role-amber.role-card-selected {
+  border-color: #f59e0b;
+
+  background: #fffcf5;
+}
+
+
+/* =====================================================
+   ROLE CARD TOP
+===================================================== */
+
+.role-card-top {
+  display: flex;
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  margin-bottom: 13px;
+}
+
+
+/* =====================================================
+   ROLE ICONS
+===================================================== */
+
+.role-icon {
+  width: 38px;
+  height: 38px;
+
+  border-radius: 10px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.role-blue .role-icon {
+  color: #2563eb;
+
+  background: #eff6ff;
+
+  border: 1px solid #dbeafe;
+}
+
+
+.role-indigo .role-icon {
+  color: #4f46e5;
+
+  background: #eef2ff;
+
+  border: 1px solid #e0e7ff;
+}
+
+
+.role-teal .role-icon {
+  color: #0f9f91;
+
+  background: #f0fdfa;
+
+  border: 1px solid #ccfbf1;
+}
+
+
+.role-purple .role-icon {
+  color: #9333ea;
+
+  background: #faf5ff;
+
+  border: 1px solid #f3e8ff;
+}
+
+
+.role-amber .role-icon {
+  color: #d97706;
+
+  background: #fffbeb;
+
+  border: 1px solid #fef3c7;
+}
+
+
+/* =====================================================
+   RADIO BUTTON
+===================================================== */
+
+.radio-button {
+  width: 15px;
+  height: 15px;
+
+  border:
+    1.5px solid
+    #cbd5e1;
+
+  border-radius: 50%;
+
+  background: #ffffff;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.role-card-selected .radio-button {
+  border-color: #2563eb;
+}
+
+
+.radio-inner {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background: #2563eb;
+}
+
+
+/* =====================================================
+   RADIO COLORS
+===================================================== */
+
+.role-indigo.role-card-selected .radio-button {
+  border-color: #6366f1;
+}
+
+
+.role-indigo.role-card-selected .radio-inner {
+  background: #6366f1;
+}
+
+
+.role-teal.role-card-selected .radio-button {
+  border-color: #14b8a6;
+}
+
+
+.role-teal.role-card-selected .radio-inner {
+  background: #14b8a6;
+}
+
+
+.role-purple.role-card-selected .radio-button {
+  border-color: #a855f7;
+}
+
+
+.role-purple.role-card-selected .radio-inner {
+  background: #a855f7;
+}
+
+
+.role-amber.role-card-selected .radio-button {
+  border-color: #f59e0b;
+}
+
+
+.role-amber.role-card-selected .radio-inner {
+  background: #f59e0b;
+}
+
+
+/* =====================================================
+   ROLE TITLE
+===================================================== */
+
+.role-title-row {
+  display: flex;
+  align-items: center;
+
+  flex-wrap: wrap;
+
+  gap: 6px;
+
+  margin-bottom: 6px;
+}
+
+
+.role-title-row h3 {
+  margin: 0;
+
+  color: #07152e;
+
+  font-size: 14px;
+  font-weight: 800;
+
+  letter-spacing: -0.25px;
+
+  line-height: 1.2;
+}
+
+
+/* =====================================================
+   ROLE BADGES
+===================================================== */
+
+.role-badge {
+  padding:
+    3px 6px;
+
+  border-radius: 4px;
+
+  font-size: 6.5px;
+  font-weight: 800;
+
+  letter-spacing: 0.2px;
+
+  white-space: nowrap;
+}
+
+
+.role-blue .role-badge {
+  color: #1e40af;
+
+  background: #dbeafe;
+}
+
+
+.role-indigo .role-badge {
+  color: #3730a3;
+
+  background: #e0e7ff;
+}
+
+
+.role-teal .role-badge {
+  color: #0f766e;
+
+  background: #ccfbf1;
+}
+
+
+.role-purple .role-badge {
+  color: #7e22ce;
+
+  background: #f3e8ff;
+}
+
+
+.role-amber .role-badge {
+  color: #92400e;
+
+  background: #fef3c7;
+}
+
+
+/* =====================================================
+   ROLE DESCRIPTION
+===================================================== */
+
+.role-description {
+  margin: 0;
+
+  max-width: 100%;
+
+  color: #64748b;
+
+  font-size: 8.5px;
+
+  line-height: 1.6;
+}
+
+
+/* =====================================================
+   ROLE CARD FOOTER
+===================================================== */
+
+.role-card-footer {
+  padding-top: 11px;
+
+  margin-top: 13px;
+
+  border-top:
+    1px solid
+    #f1f5f9;
+
+  display: flex;
+  align-items: center;
+
+  justify-content: space-between;
+
+  font-size: 8.5px;
+
+  font-weight: 700;
+}
+
+
+.role-blue .role-card-footer {
+  color: #2563eb;
+}
+
+
+.role-indigo .role-card-footer {
+  color: #4f46e5;
+}
+
+
+.role-teal .role-card-footer {
+  color: #0f9f91;
+}
+
+
+.role-purple .role-card-footer {
+  color: #9333ea;
+}
+
+
+.role-amber .role-card-footer {
+  color: #d97706;
+}
+
+
+.role-arrow {
+  transition:
+    transform 0.2s ease;
+}
+
+
+.role-card:hover .role-arrow {
+  transform:
+    translateX(3px);
+}
+
+
+/* =====================================================
+   SELECTED ROLE SUMMARY
+===================================================== */
+
+.selection-summary {
+  width: 71%;
+  max-width: 820px;
+
+  margin:
+    25px auto 0;
+}
+
+
+.summary-active {
+  min-height: 64px;
+
+  padding:
+    11px 13px;
+
+  box-sizing: border-box;
+
+  background: #ffffff;
+
+  border:
+    1px solid
+    #bfdbfe;
+
+  border-radius: 14px;
+
+  box-shadow:
+    0 5px 15px rgba(37, 99, 235, 0.05);
+
+  display: flex;
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 15px;
+}
+
+
+.summary-left {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+
+.summary-icon {
+  width: 34px;
+  height: 34px;
+
+  flex-shrink: 0;
+
+  border-radius: 9px;
+
+  background: #dbeafe;
+
+  color: #2563eb;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.summary-content {
+  min-width: 0;
+}
+
+
+.summary-title-row {
+  display: flex;
+  align-items: center;
+
+  flex-wrap: wrap;
+
+  gap: 7px;
+}
+
+
+.summary-label {
+  color: #94a3b8;
+
+  font-size: 7px;
+  font-weight: 800;
+
+  letter-spacing: 0.7px;
+}
+
+
+.summary-role {
+  color: #07152e;
+
+  font-size: 10px;
+  font-weight: 800;
+}
+
+
+.change-button {
+  padding: 0;
+
+  border: 0;
+
+  background: transparent;
+
+  color: #2563eb;
+
+  font-size: 7.5px;
+  font-weight: 600;
+
+  text-decoration: underline;
+
+  cursor: pointer;
+}
+
+
+.summary-content p {
+  margin:
+    3px 0 0;
+
+  color: #64748b;
+
+  font-size: 7.5px;
+
+  line-height: 1.4;
+}
+
+
+/* =====================================================
+   CONTINUE BUTTON
+===================================================== */
+
+.continue-button {
+  flex-shrink: 0;
+
+  min-height: 36px;
+
+  padding:
+    0 16px;
+
+  border: 0;
+
+  border-radius: 9px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #2563eb,
+      #4f46e5
+    );
+
+  color: white;
+
+  font-size: 9px;
+  font-weight: 700;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 7px;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 5px 12px
+    rgba(37, 99, 235, 0.22);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+
+.continue-button:hover:not(:disabled) {
+  transform:
+    translateY(-1px);
+
+  box-shadow:
+    0 7px 16px
+    rgba(37, 99, 235, 0.25);
+}
+
+
+.continue-button:disabled {
+  opacity: 0.8;
+
+  cursor: not-allowed;
+}
+
+
+/* =====================================================
+   LOADING SPINNER
+===================================================== */
+
+.loading-spinner {
+  width: 12px;
+  height: 12px;
+
+  border:
+    2px solid
+    rgba(255, 255, 255, 0.4);
+
+  border-top-color:
+    #ffffff;
+
+  border-radius: 50%;
+
+  animation:
+    role-spin
+    0.7s linear infinite;
+}
+
+
+@keyframes role-spin {
+
+  to {
+    transform: rotate(360deg);
+  }
+
+}
+
+
+/* =====================================================
+   EMPTY SUMMARY
+===================================================== */
+
+.summary-empty {
+  min-height: 43px;
+
+  padding: 10px;
+
+  box-sizing: border-box;
+
+  background: #f8fafc;
+
+  border:
+    1px dashed
+    #cbd5e1;
+
+  border-radius: 13px;
+
+  color: #64748b;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 7px;
+
+  font-size: 8px;
+}
+
+
+/* =====================================================
+   RBAC BANNER
+===================================================== */
+
+.rbac-banner {
+  width: 56%;
+  max-width: 650px;
+
+  margin:
+    25px auto 0;
+
+  padding:
+    11px 13px;
+
+  box-sizing: border-box;
+
+  background:
+    rgba(239, 246, 255, 0.65);
+
+  border:
+    1px solid
+    #dbeafe;
+
+  border-radius: 11px;
+
+  display: flex;
+  align-items: flex-start;
+
+  gap: 10px;
+}
+
+
+.rbac-icon {
+  width: 27px;
+  height: 27px;
+
+  flex-shrink: 0;
+
+  border-radius: 7px;
+
+  background: #dbeafe;
+
+  color: #1d4ed8;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.rbac-content {
+  min-width: 0;
+}
+
+
+.rbac-banner h4 {
+  margin:
+    1px 0 3px;
+
+  color: #07152e;
+
+  font-size: 7.5px;
+
+  font-weight: 800;
+
+  letter-spacing: 0.7px;
+}
+
+
+.rbac-banner p {
+  margin: 0;
+
+  color: #64748b;
+
+  font-size: 7.5px;
+
+  line-height: 1.5;
+}
+
+
+/* =====================================================
+   FOOTER
+===================================================== */
+
+.role-footer {
+  width: 100%;
+  max-width: 1280px;
+
+  margin: 0 auto;
+
+  padding:
+    16px 24px 20px;
+
+  box-sizing: border-box;
+
+  border-top:
+    1px solid
+    #e2e8f0;
+
+  color: #64748b;
+
+  font-size: 7.5px;
+
+  display: flex;
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 15px;
+}
+
+
+.footer-left {
+  display: flex;
+  align-items: center;
+
+  gap: 5px;
+}
+
+
+.footer-separator {
+  color: #cbd5e1;
+}
+
+
+.footer-right {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  color: #94a3b8;
+}
+
+
+.compliance {
+  display: flex;
+  align-items: center;
+
+  gap: 5px;
+}
+
+
+.footer-dot {
+  width: 6px;
+  height: 6px;
+
+  background: #10b981;
+
+  border-radius: 50%;
+}
+
+
+.footer-bullet {
+  color: #cbd5e1;
+}
+
+
+/* =====================================================
+   RESPONSIVE - TABLET
+===================================================== */
+
+@media (max-width: 1000px) {
+
+  .institution-info,
+  .header-divider {
+    display: none;
+  }
+
+
+  .header-right {
+    gap: 8px;
+  }
+
+
+  .roles-row-three {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+
+  .roles-row-two {
+    width: 100%;
+  }
+
+
+  .selection-summary {
+    width: 100%;
+  }
+
+
+  .rbac-banner {
+    width: 75%;
+  }
+
+}
+
+
+/* =====================================================
+   RESPONSIVE - MOBILE
+===================================================== */
+
+@media (max-width: 680px) {
+
+  .role-header {
+    height: auto;
+  }
+
+
+  .header-inner {
+    padding:
+      10px 15px;
+  }
+
+
+  .brand-subtitle {
+    display: none;
+  }
+
+
+  .institution-info,
+  .header-divider {
+    display: none;
+  }
+
+
+  .user-details {
+    display: none;
+  }
+
+
+  .role-main {
+    padding:
+      25px 15px 30px;
+  }
+
+
+  .role-hero {
+    margin-bottom: 25px;
+  }
+
+
+  .role-hero h1 {
+    font-size: 27px;
+  }
+
+
+  .hero-description {
+    font-size: 11px;
+  }
+
+
+  .roles-row-three,
+  .roles-row-two {
+    width: 100%;
+
+    grid-template-columns:
+      1fr;
+
+    gap: 12px;
+  }
+
+
+  .role-card {
+    min-height: 165px;
+  }
+
+
+  .summary-active {
+    flex-direction: column;
+
+    align-items: stretch;
+  }
+
+
+  .summary-left {
+    width: 100%;
+  }
+
+
+  .continue-button {
+    width: 100%;
+  }
+
+
+  .rbac-banner {
+    width: 100%;
+  }
+
+
+  .role-footer {
+    flex-direction: column;
+
+    text-align: center;
+  }
+
+
+  .footer-left,
+  .footer-right {
+    justify-content: center;
+
+    flex-wrap: wrap;
+  }
+
+}
