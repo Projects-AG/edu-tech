@@ -202,7 +202,7 @@ export const NAVIGATION_CONFIG = {
 
     {
       label: "Review & Approval",
-      path: "/review",
+      path: "/reviewer/queue",
       icon: CheckSquare,
     },
 
