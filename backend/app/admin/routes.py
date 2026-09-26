@@ -1,7 +1,14 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import get_db, get_current_user, require_permission
+from app.auth.dependencies import (
+    get_db,
+    get_current_user,
+    require_permission,
+)
+
 from app.auth.security import hash_password
 
 from app.auth.registration_authority import (
@@ -46,12 +53,40 @@ router = APIRouter(
 # ============================================================
 
 ADMIN_ROLE = "Admin"
+
+INSTITUTION_ADMIN_ROLE = "Institution Admin"
+
 NAAC_COORDINATOR_ROLE = "NAAC Coordinator"
+
 COMMITTEE_MEMBER_ROLE = "Committee Member"
+
 DEPT_COORDINATOR_ROLE = "Dept. Coordinator"
+
 REVIEWER_ROLE = "Reviewer"
+
 DATA_APPROVER_ROLE = "Data Approver"
+
 PRINCIPAL_DIRECTOR_ROLE = "Principal / Director"
+
+
+# ============================================================
+# INSTITUTIONAL ROLES
+#
+# These roles can be assigned by Institution Admin.
+#
+# Platform Admin and Institution Admin themselves are excluded
+# from normal Institution Admin user management to prevent
+# privilege escalation.
+# ============================================================
+
+INSTITUTIONAL_USER_ROLES = {
+    NAAC_COORDINATOR_ROLE,
+    COMMITTEE_MEMBER_ROLE,
+    DEPT_COORDINATOR_ROLE,
+    REVIEWER_ROLE,
+    DATA_APPROVER_ROLE,
+    PRINCIPAL_DIRECTOR_ROLE,
+}
 
 
 # ============================================================
@@ -67,7 +102,9 @@ def get_role(
 
     return (
         db.query(Role)
-        .filter(Role.id == role_id)
+        .filter(
+            Role.id == role_id
+        )
         .first()
     )
 
@@ -81,7 +118,9 @@ def get_institution(
 
     return (
         db.query(Institution)
-        .filter(Institution.id == institution_id)
+        .filter(
+            Institution.id == institution_id
+        )
         .first()
     )
 
@@ -95,7 +134,9 @@ def get_department(
 
     return (
         db.query(Department)
-        .filter(Department.id == department_id)
+        .filter(
+            Department.id == department_id
+        )
         .first()
     )
 
@@ -109,7 +150,9 @@ def get_faculty(
 
     return (
         db.query(Faculty)
-        .filter(Faculty.id == faculty_id)
+        .filter(
+            Faculty.id == faculty_id
+        )
         .first()
     )
 
@@ -131,6 +174,221 @@ def get_faculty_from_department(
         department.faculty_id
     )
 
+
+# ============================================================
+# ROLE CHECKS
+# ============================================================
+
+def get_current_role_name(
+    db: Session,
+    current_user: User
+):
+    return get_role_name(
+        db,
+        current_user.role_id
+    )
+
+
+def is_platform_admin(
+    db: Session,
+    current_user: User
+):
+    return (
+        get_current_role_name(
+            db,
+            current_user
+        )
+        == ADMIN_ROLE
+    )
+
+
+def is_institution_admin(
+    db: Session,
+    current_user: User
+):
+    return (
+        get_current_role_name(
+            db,
+            current_user
+        )
+        == INSTITUTION_ADMIN_ROLE
+    )
+
+
+# ============================================================
+# INSTITUTION ADMIN SCOPE
+# ============================================================
+
+def ensure_institution_admin_scope(
+    db: Session,
+    current_user: User,
+    institution_id: int | None,
+):
+    """
+    Platform Admin:
+        Can access any institution.
+
+    Institution Admin:
+        Can access only their own institution.
+    """
+
+    if is_platform_admin(
+        db,
+        current_user
+    ):
+        return
+
+    if is_institution_admin(
+        db,
+        current_user
+    ):
+
+        if not current_user.institution_id:
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Institution Admin is not assigned "
+                    "to an institution."
+                )
+            )
+
+        if institution_id != current_user.institution_id:
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "You can only manage your own institution."
+                )
+            )
+
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=(
+            "You do not have institution administration access."
+        )
+    )
+
+
+# ============================================================
+# USER SCOPE
+# ============================================================
+
+def ensure_user_scope(
+    db: Session,
+    current_user: User,
+    target_user: User,
+):
+    """
+    Admin:
+        Can access all users.
+
+    Institution Admin:
+        Can access only users belonging to the same
+        institution.
+    """
+
+    if is_platform_admin(
+        db,
+        current_user
+    ):
+        return
+
+    if is_institution_admin(
+        db,
+        current_user
+    ):
+
+        if not current_user.institution_id:
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Institution Admin is not assigned "
+                    "to an institution."
+                )
+            )
+
+        if (
+            target_user.institution_id
+            != current_user.institution_id
+        ):
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "You can only manage users "
+                    "from your own institution."
+                )
+            )
+
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=(
+            "You do not have user administration access."
+        )
+    )
+
+
+# ============================================================
+# VALIDATE ROLE FOR INSTITUTION ADMIN
+# ============================================================
+
+def validate_role_assignment(
+    db: Session,
+    current_user: User,
+    role: Role,
+):
+    """
+    Platform Admin:
+        Can assign any role.
+
+    Institution Admin:
+        Can assign institutional roles only.
+
+    Institution Admin cannot create:
+        Admin
+        Institution Admin
+    """
+
+    if is_platform_admin(
+        db,
+        current_user
+    ):
+        return
+
+    if is_institution_admin(
+        db,
+        current_user
+    ):
+
+        if role.name not in INSTITUTIONAL_USER_ROLES:
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Institution Admin can only assign "
+                    "institutional roles."
+                )
+            )
+
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=(
+            "You do not have permission to assign roles."
+        )
+    )
+
+
+# ============================================================
+# VALIDATE USER HIERARCHY
+# ============================================================
 
 def validate_user_hierarchy(
     db: Session,
@@ -164,6 +422,7 @@ def validate_user_hierarchy(
         )
 
         if not institution:
+
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Institution not found"
@@ -181,6 +440,7 @@ def validate_user_hierarchy(
         )
 
         if not faculty:
+
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Faculty not found"
@@ -190,6 +450,7 @@ def validate_user_hierarchy(
             institution_id is not None
             and faculty.institution_id != institution_id
         ):
+
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
@@ -210,6 +471,7 @@ def validate_user_hierarchy(
         )
 
         if not department:
+
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Department not found"
@@ -219,6 +481,7 @@ def validate_user_hierarchy(
             institution_id is not None
             and department.institution_id != institution_id
         ):
+
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
@@ -237,6 +500,7 @@ def validate_user_hierarchy(
                 faculty_id is not None
                 and department.faculty_id != faculty_id
             ):
+
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=(
@@ -255,23 +519,108 @@ def validate_user_hierarchy(
 @router.get("/dashboard")
 def admin_dashboard(
     current_user: User = Depends(
-        require_permission("USER_MANAGEMENT", "View")
+        require_permission(
+            "USER_MANAGEMENT",
+            "View"
+        )
     ),
     db: Session = Depends(get_db)
 ):
 
-    total_users = (
-        db.query(User)
-        .count()
+    current_role = get_current_role_name(
+        db,
+        current_user
     )
 
-    active_users = (
-        db.query(User)
-        .filter(
-            User.is_active == True
+    # --------------------------------------------------------
+    # PLATFORM ADMIN
+    # --------------------------------------------------------
+
+    if current_role == ADMIN_ROLE:
+
+        total_users = (
+            db.query(User)
+            .count()
         )
-        .count()
-    )
+
+        active_users = (
+            db.query(User)
+            .filter(
+                User.is_active == True
+            )
+            .count()
+        )
+
+        total_institutions = (
+            db.query(Institution)
+            .count()
+        )
+
+        pending_requests = (
+            db.query(RegistrationRequest)
+            .filter(
+                RegistrationRequest.status == "PENDING"
+            )
+            .count()
+        )
+
+    # --------------------------------------------------------
+    # INSTITUTION ADMIN
+    # --------------------------------------------------------
+
+    elif current_role == INSTITUTION_ADMIN_ROLE:
+
+        if not current_user.institution_id:
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Institution Admin is not assigned "
+                    "to an institution."
+                )
+            )
+
+        total_users = (
+            db.query(User)
+            .filter(
+                User.institution_id
+                == current_user.institution_id
+            )
+            .count()
+        )
+
+        active_users = (
+            db.query(User)
+            .filter(
+                User.institution_id
+                == current_user.institution_id,
+                User.is_active == True
+            )
+            .count()
+        )
+
+        total_institutions = 1
+
+        pending_requests = (
+            db.query(RegistrationRequest)
+            .filter(
+                RegistrationRequest.institution_id
+                == current_user.institution_id,
+                RegistrationRequest.status
+                == "PENDING"
+            )
+            .count()
+        )
+
+    else:
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have access to the "
+                "administration dashboard."
+            )
+        )
 
     total_roles = (
         db.query(Role)
@@ -288,22 +637,19 @@ def admin_dashboard(
         .count()
     )
 
-    total_institutions = (
-        db.query(Institution)
-        .count()
+    total_cycles_query = db.query(
+        AccreditationCycle
     )
+
+    if current_role == INSTITUTION_ADMIN_ROLE:
+
+        total_cycles_query = total_cycles_query.filter(
+            AccreditationCycle.institution_id
+            == current_user.institution_id
+        )
 
     total_cycles = (
-        db.query(AccreditationCycle)
-        .count()
-    )
-
-    pending_requests = (
-        db.query(RegistrationRequest)
-        .filter(
-            RegistrationRequest.status == "PENDING"
-        )
-        .count()
+        total_cycles_query.count()
     )
 
     return {
@@ -314,17 +660,24 @@ def admin_dashboard(
             "id": current_user.id,
             "name": current_user.name,
             "email": current_user.email,
+            "role": current_role,
+            "institution_id":
+                current_user.institution_id,
         },
 
         "statistics": {
 
-            "total_users": total_users,
+            "total_users":
+                total_users,
 
-            "active_users": active_users,
+            "active_users":
+                active_users,
 
-            "total_roles": total_roles,
+            "total_roles":
+                total_roles,
 
-            "total_modules": total_modules,
+            "total_modules":
+                total_modules,
 
             "total_permissions":
                 total_permissions,
@@ -342,19 +695,61 @@ def admin_dashboard(
 
 
 # ============================================================
-# GET ALL USERS
+# GET USERS
+#
+# Admin:
+#     All users
+#
+# Institution Admin:
+#     Only own institution
 # ============================================================
 
 @router.get("/users")
 def get_users(
     current_user: User = Depends(
-        require_permission("USER_MANAGEMENT", "View")
+        require_permission(
+            "USER_MANAGEMENT",
+            "View"
+        )
     ),
     db: Session = Depends(get_db)
 ):
 
+    query = db.query(User)
+
+    current_role = get_current_role_name(
+        db,
+        current_user
+    )
+
+    if current_role == INSTITUTION_ADMIN_ROLE:
+
+        if not current_user.institution_id:
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Institution Admin is not assigned "
+                    "to an institution."
+                )
+            )
+
+        query = query.filter(
+            User.institution_id
+            == current_user.institution_id
+        )
+
+    elif current_role != ADMIN_ROLE:
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have access to user management."
+            )
+        )
+
     users = (
-        db.query(User)
+        query
         .order_by(User.id)
         .all()
     )
@@ -462,10 +857,61 @@ def get_users(
 def create_user(
     user_data: AdminUserCreate,
     current_user: User = Depends(
-        require_permission("USER_MANAGEMENT", "Create")
+        require_permission(
+            "USER_MANAGEMENT",
+            "Create"
+        )
     ),
     db: Session = Depends(get_db)
 ):
+
+    current_role_name = get_current_role_name(
+        db,
+        current_user
+    )
+
+    # --------------------------------------------------------
+    # Institution scope
+    # --------------------------------------------------------
+
+    target_institution_id = (
+        user_data.institution_id
+    )
+
+    if current_role_name == INSTITUTION_ADMIN_ROLE:
+
+        if not current_user.institution_id:
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Institution Admin is not assigned "
+                    "to an institution."
+                )
+            )
+
+        if (
+            target_institution_id
+            != current_user.institution_id
+        ):
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "You can only create users "
+                    "for your own institution."
+                )
+            )
+
+    elif current_role_name != ADMIN_ROLE:
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to create users."
+            )
+        )
 
     # --------------------------------------------------------
     # Duplicate email
@@ -505,12 +951,22 @@ def create_user(
         )
 
     # --------------------------------------------------------
+    # Institution Admin role restrictions
+    # --------------------------------------------------------
+
+    validate_role_assignment(
+        db,
+        current_user,
+        role
+    )
+
+    # --------------------------------------------------------
     # Validate hierarchy
     # --------------------------------------------------------
 
     validate_user_hierarchy(
         db=db,
-        institution_id=user_data.institution_id,
+        institution_id=target_institution_id,
         faculty_id=user_data.faculty_id,
         department_id=user_data.department_id,
     )
@@ -533,7 +989,7 @@ def create_user(
         role_id=user_data.role_id,
 
         institution_id=
-            user_data.institution_id,
+            target_institution_id,
 
         faculty_id=
             user_data.faculty_id,
@@ -601,7 +1057,10 @@ def create_user(
 def get_user(
     user_id: int,
     current_user: User = Depends(
-        require_permission("USER_MANAGEMENT", "View")
+        require_permission(
+            "USER_MANAGEMENT",
+            "View"
+        )
     ),
     db: Session = Depends(get_db)
 ):
@@ -620,6 +1079,16 @@ def get_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
+
+    # --------------------------------------------------------
+    # Institution Admin scope
+    # --------------------------------------------------------
+
+    ensure_user_scope(
+        db,
+        current_user,
+        user
+    )
 
     role = get_role(
         db,
@@ -695,7 +1164,10 @@ def update_user(
     user_id: int,
     user_data: AdminUserUpdate,
     current_user: User = Depends(
-        require_permission("USER_MANAGEMENT", "Edit")
+        require_permission(
+            "USER_MANAGEMENT",
+            "Edit"
+        )
     ),
     db: Session = Depends(get_db)
 ):
@@ -714,6 +1186,27 @@ def update_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
+
+    # --------------------------------------------------------
+    # Check target user scope
+    # --------------------------------------------------------
+
+    ensure_user_scope(
+        db,
+        current_user,
+        user
+    )
+
+    current_role_name = get_current_role_name(
+        db,
+        current_user
+    )
+
+    # --------------------------------------------------------
+    # Institution Admin cannot modify another
+    # institution's user.
+    # Already checked above.
+    # --------------------------------------------------------
 
     # --------------------------------------------------------
     # Email
@@ -777,6 +1270,12 @@ def update_user(
                 detail="Role not found"
             )
 
+        validate_role_assignment(
+            db,
+            current_user,
+            role
+        )
+
         user.role_id = user_data.role_id
 
     # --------------------------------------------------------
@@ -795,6 +1294,23 @@ def update_user(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Institution not found"
+            )
+
+        # Institution Admin can NEVER move a user
+        # to another institution.
+        if (
+            current_role_name
+            == INSTITUTION_ADMIN_ROLE
+            and institution.id
+            != current_user.institution_id
+        ):
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Institution Admin cannot move "
+                    "users to another institution."
+                )
             )
 
         user.institution_id = (
@@ -819,6 +1335,21 @@ def update_user(
                 detail="Faculty not found"
             )
 
+        if (
+            current_role_name
+            == INSTITUTION_ADMIN_ROLE
+            and faculty.institution_id
+            != current_user.institution_id
+        ):
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Selected faculty does not belong "
+                    "to your institution."
+                )
+            )
+
         user.faculty_id = (
             user_data.faculty_id
         )
@@ -839,6 +1370,21 @@ def update_user(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Department not found"
+            )
+
+        if (
+            current_role_name
+            == INSTITUTION_ADMIN_ROLE
+            and department.institution_id
+            != current_user.institution_id
+        ):
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Selected department does not belong "
+                    "to your institution."
+                )
             )
 
         user.department_id = (
@@ -929,7 +1475,10 @@ def update_user(
 def delete_user(
     user_id: int,
     current_user: User = Depends(
-        require_permission("USER_MANAGEMENT", "Delete")
+        require_permission(
+            "USER_MANAGEMENT",
+            "Delete"
+        )
     ),
     db: Session = Depends(get_db)
 ):
@@ -949,12 +1498,49 @@ def delete_user(
             detail="User not found"
         )
 
+    # --------------------------------------------------------
+    # Institution Admin scope
+    # --------------------------------------------------------
+
+    ensure_user_scope(
+        db,
+        current_user,
+        user
+    )
+
     if user.id == current_user.id:
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
                 "You cannot delete your own account"
+            )
+        )
+
+    # --------------------------------------------------------
+    # Institution Admin cannot delete protected roles
+    # --------------------------------------------------------
+
+    user_role = get_role(
+        db,
+        user.role_id
+    )
+
+    if (
+        is_institution_admin(
+            db,
+            current_user
+        )
+        and user_role
+        and user_role.name
+        not in INSTITUTIONAL_USER_ROLES
+    ):
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Institution Admin cannot delete "
+                "platform or institution administrator accounts."
             )
         )
 
@@ -990,7 +1576,10 @@ def delete_user(
 @router.get("/roles")
 def get_roles(
     current_user: User = Depends(
-        require_permission("USER_MANAGEMENT", "View")
+        require_permission(
+            "USER_MANAGEMENT",
+            "View"
+        )
     ),
     db: Session = Depends(get_db)
 ):
@@ -1000,6 +1589,20 @@ def get_roles(
         .order_by(Role.id)
         .all()
     )
+
+    # Institution Admin should only see roles that
+    # they are allowed to assign.
+    if is_institution_admin(
+        db,
+        current_user
+    ):
+
+        roles = [
+            role
+            for role in roles
+            if role.name
+            in INSTITUTIONAL_USER_ROLES
+        ]
 
     return [
 
@@ -1023,7 +1626,10 @@ def get_roles(
 @router.get("/permissions")
 def get_permissions(
     current_user: User = Depends(
-        require_permission("USER_MANAGEMENT", "View")
+        require_permission(
+            "USER_MANAGEMENT",
+            "View"
+        )
     ),
     db: Session = Depends(get_db)
 ):
@@ -1056,7 +1662,10 @@ def get_permissions(
 @router.get("/modules")
 def get_modules(
     current_user: User = Depends(
-        require_permission("USER_MANAGEMENT", "View")
+        require_permission(
+            "USER_MANAGEMENT",
+            "View"
+        )
     ),
     db: Session = Depends(get_db)
 ):
@@ -1086,6 +1695,12 @@ def get_modules(
 
 # ============================================================
 # INSTITUTIONS
+#
+# Admin:
+#     All institutions
+#
+# Institution Admin:
+#     Own institution only
 # ============================================================
 
 @router.get("/institutions")
@@ -1099,8 +1714,41 @@ def get_institutions(
     db: Session = Depends(get_db)
 ):
 
+    query = db.query(Institution)
+
+    current_role = get_current_role_name(
+        db,
+        current_user
+    )
+
+    if current_role == INSTITUTION_ADMIN_ROLE:
+
+        if not current_user.institution_id:
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Institution Admin is not assigned "
+                    "to an institution."
+                )
+            )
+
+        query = query.filter(
+            Institution.id
+            == current_user.institution_id
+        )
+
+    elif current_role != ADMIN_ROLE:
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have institution management access."
+            )
+        )
+
     institutions = (
-        db.query(Institution)
+        query
         .order_by(Institution.id)
         .all()
     )
@@ -1147,8 +1795,43 @@ def get_accreditation_cycles(
     db: Session = Depends(get_db)
 ):
 
+    query = db.query(
+        AccreditationCycle
+    )
+
+    current_role = get_current_role_name(
+        db,
+        current_user
+    )
+
+    if current_role == INSTITUTION_ADMIN_ROLE:
+
+        if not current_user.institution_id:
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Institution Admin is not assigned "
+                    "to an institution."
+                )
+            )
+
+        query = query.filter(
+            AccreditationCycle.institution_id
+            == current_user.institution_id
+        )
+
+    elif current_role != ADMIN_ROLE:
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have accreditation cycle access."
+            )
+        )
+
     cycles = (
-        db.query(AccreditationCycle)
+        query
         .order_by(AccreditationCycle.id)
         .all()
     )
@@ -1182,15 +1865,7 @@ def get_accreditation_cycles(
 # ============================================================
 # REGISTRATION REQUESTS
 #
-# IMPORTANT:
-#
-# These endpoints DO NOT use:
-#
-# require_permission("USER_MANAGEMENT", "View")
-#
-# because registration authorization now follows the
-# organizational hierarchy.
-#
+# These endpoints follow the organizational hierarchy.
 # ============================================================
 
 @router.get("/registration-requests")
@@ -1210,38 +1885,20 @@ def get_registration_requests(
 
     for request in requests:
 
-        # ----------------------------------------------------
-        # Requested role
-        # ----------------------------------------------------
-
         requested_role = get_role(
             db,
             request.requested_role_id
         )
-
-        # ----------------------------------------------------
-        # Assigned role
-        # ----------------------------------------------------
 
         assigned_role = get_role(
             db,
             request.assigned_role_id
         )
 
-        # ----------------------------------------------------
-        # Department
-        # ----------------------------------------------------
-
         department = get_department(
             db,
             request.department_id
         )
-
-        # ----------------------------------------------------
-        # Faculty is derived from department
-        #
-        # RegistrationRequest does NOT store faculty_id.
-        # ----------------------------------------------------
 
         faculty = None
 
@@ -1255,18 +1912,10 @@ def get_registration_requests(
                 department.faculty_id
             )
 
-        # ----------------------------------------------------
-        # Institution
-        # ----------------------------------------------------
-
         institution = get_institution(
             db,
             request.institution_id
         )
-
-        # ----------------------------------------------------
-        # Reviewer / authorizer
-        # ----------------------------------------------------
 
         reviewed_by_user = None
 
@@ -1411,7 +2060,7 @@ def get_registration_request(
         )
 
     # --------------------------------------------------------
-    # Check whether this authority can process this request
+    # Pending request
     # --------------------------------------------------------
 
     if request.status == "PENDING":
@@ -1424,18 +2073,16 @@ def get_registration_request(
 
     else:
 
-        # ----------------------------------------------------
-        # For already processed requests:
-        # Admin can view all.
-        #
-        # Other authorities can only view requests
-        # belonging to their institution.
-        # ----------------------------------------------------
-
         current_role_name = get_role_name(
             db,
             current_user.role_id
         )
+
+        # ----------------------------------------------------
+        # Admin can view everything.
+        #
+        # Other roles can only view their institution.
+        # ----------------------------------------------------
 
         if current_role_name != ADMIN_ROLE:
 
@@ -1596,33 +2243,6 @@ def get_registration_request(
 
 # ============================================================
 # APPROVE REGISTRATION REQUEST
-#
-# THIS IS THE MAIN HIERARCHICAL AUTHORIZATION ENDPOINT
-#
-# Committee Member
-#       ↓
-# Dept. Coordinator
-#
-# Dept. Coordinator
-#       ↓
-# NAAC Coordinator
-#
-# NAAC Coordinator
-#       ↓
-# Principal / Director
-#
-# Principal / Director
-#       ↓
-# Admin
-#
-# Reviewer
-#       ↓
-# Admin
-#
-# Data Approver
-#       ↓
-# Admin
-#
 # ============================================================
 
 @router.post(
@@ -1636,10 +2256,6 @@ def approve_registration_request(
     ),
     db: Session = Depends(get_db)
 ):
-
-    # --------------------------------------------------------
-    # Find request
-    # --------------------------------------------------------
 
     registration_request = (
         db.query(RegistrationRequest)
@@ -1659,10 +2275,6 @@ def approve_registration_request(
             )
         )
 
-    # --------------------------------------------------------
-    # Must be pending
-    # --------------------------------------------------------
-
     if (
         registration_request.status
         != "PENDING"
@@ -1677,9 +2289,7 @@ def approve_registration_request(
         )
 
     # --------------------------------------------------------
-    # HIERARCHICAL AUTHORIZATION
-    #
-    # This replaces Admin-only approval.
+    # Hierarchical authorization
     # --------------------------------------------------------
 
     validate_registration_approval(
@@ -1688,10 +2298,6 @@ def approve_registration_request(
             registration_request,
         current_user=current_user,
     )
-
-    # --------------------------------------------------------
-    # Requested role
-    # --------------------------------------------------------
 
     requested_role = get_role(
         db,
@@ -1707,10 +2313,6 @@ def approve_registration_request(
             )
         )
 
-    # --------------------------------------------------------
-    # Final assigned role
-    # --------------------------------------------------------
-
     assigned_role = get_role(
         db,
         approval_data.role_id
@@ -1723,25 +2325,14 @@ def approve_registration_request(
             detail="Assigned role not found."
         )
 
-    # --------------------------------------------------------
-    # SECURITY:
-    #
-    # Non-Admin authorities cannot change the requested role.
-    #
-    # Example:
-    #
-    # Applicant requests Committee Member
-    #
-    # Dept. Coordinator can approve as Committee Member,
-    # but cannot secretly turn them into Admin.
-    #
-    # Admin can make final role decisions.
-    # --------------------------------------------------------
-
     current_role_name = get_role_name(
         db,
         current_user.role_id
     )
+
+    # --------------------------------------------------------
+    # Non-Admin authorities cannot change requested role
+    # --------------------------------------------------------
 
     if current_role_name != ADMIN_ROLE:
 
@@ -1759,13 +2350,12 @@ def approve_registration_request(
             )
 
     # --------------------------------------------------------
-    # Determine institution
+    # Institution
     # --------------------------------------------------------
 
     institution_id = (
         approval_data.institution_id
-        if approval_data.institution_id
-        is not None
+        if approval_data.institution_id is not None
         else registration_request.institution_id
     )
 
@@ -1773,10 +2363,27 @@ def approve_registration_request(
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Institution is required."
-            )
+            detail="Institution is required."
         )
+
+    # --------------------------------------------------------
+    # Institution Admin scope
+    # --------------------------------------------------------
+
+    if current_role_name == INSTITUTION_ADMIN_ROLE:
+
+        if (
+            institution_id
+            != current_user.institution_id
+        ):
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "You can only approve users "
+                    "for your own institution."
+                )
+            )
 
     institution = get_institution(
         db,
@@ -1791,13 +2398,12 @@ def approve_registration_request(
         )
 
     # --------------------------------------------------------
-    # Determine department
+    # Department
     # --------------------------------------------------------
 
     department_id = (
         approval_data.department_id
-        if approval_data.department_id
-        is not None
+        if approval_data.department_id is not None
         else registration_request.department_id
     )
 
@@ -1831,10 +2437,7 @@ def approve_registration_request(
             )
 
     # --------------------------------------------------------
-    # Determine faculty
-    #
-    # Faculty is derived from department unless Admin
-    # explicitly supplies a valid faculty.
+    # Faculty
     # --------------------------------------------------------
 
     faculty_id = None
@@ -1873,7 +2476,7 @@ def approve_registration_request(
         faculty_id = department.faculty_id
 
     # --------------------------------------------------------
-    # Validate faculty → department
+    # Faculty → Department
     # --------------------------------------------------------
 
     if (
@@ -1916,7 +2519,7 @@ def approve_registration_request(
         )
 
     # --------------------------------------------------------
-    # CREATE USER
+    # Create user
     # --------------------------------------------------------
 
     new_user = User(
@@ -1948,7 +2551,7 @@ def approve_registration_request(
     db.add(new_user)
 
     # --------------------------------------------------------
-    # UPDATE REGISTRATION REQUEST
+    # Update request
     # --------------------------------------------------------
 
     registration_request.status = "APPROVED"
@@ -1960,8 +2563,6 @@ def approve_registration_request(
     registration_request.reviewed_by = (
         current_user.id
     )
-
-    from datetime import datetime
 
     registration_request.reviewed_at = (
         datetime.utcnow()
@@ -1995,10 +2596,6 @@ def approve_registration_request(
                 "Failed to approve registration request."
             )
         )
-
-    # --------------------------------------------------------
-    # RESPONSE
-    # --------------------------------------------------------
 
     return {
 
@@ -2069,8 +2666,6 @@ def approve_registration_request(
 
 # ============================================================
 # REJECT REGISTRATION REQUEST
-#
-# Same hierarchy applies.
 # ============================================================
 
 @router.post(
@@ -2103,10 +2698,6 @@ def reject_registration_request(
             )
         )
 
-    # --------------------------------------------------------
-    # Must be pending
-    # --------------------------------------------------------
-
     if (
         registration_request.status
         != "PENDING"
@@ -2134,8 +2725,6 @@ def reject_registration_request(
     # --------------------------------------------------------
     # Reject
     # --------------------------------------------------------
-
-    from datetime import datetime
 
     registration_request.status = "REJECTED"
 

@@ -50,13 +50,15 @@ def get_db():
 
 
 # ============================================================
-# EXISTING PROJECT ROLE NAMES
+# ROLE NAMES
 #
 # DO NOT RENAME THESE.
 # These are the actual database role names.
 # ============================================================
 
 ADMIN_ROLE = "Admin"
+
+INSTITUTION_ADMIN_ROLE = "Institution Admin"
 
 NAAC_COORDINATOR_ROLE = "NAAC Coordinator"
 
@@ -78,14 +80,13 @@ PRINCIPAL_DIRECTOR_ROLE = "Principal / Director"
 #       ↓
 # Required Approver
 #
-# Client hierarchy mapped to existing project roles:
+# Existing project hierarchy is preserved.
 #
-# Faculty / Staff      = Committee Member
-# Department HOD       = Dept. Coordinator
-# IQAC Coordinator     = NAAC Coordinator
-# Institution Admin    = Principal / Director
-# NAAC Admin            = Admin
+# Institution Admin is an institution-management role.
+# It is NOT publicly selectable.
 #
+# The first Institution Admin should be assigned by the
+# authorized institutional/platform flow.
 # ============================================================
 
 REGISTRATION_AUTHORITY = {
@@ -98,11 +99,11 @@ REGISTRATION_AUTHORITY = {
     DEPT_COORDINATOR_ROLE:
         NAAC_COORDINATOR_ROLE,
 
-    # IQAC Coordinator
+    # IQAC / NAAC Coordinator
     NAAC_COORDINATOR_ROLE:
         PRINCIPAL_DIRECTOR_ROLE,
 
-    # Institution Admin
+    # Principal / Director
     PRINCIPAL_DIRECTOR_ROLE:
         ADMIN_ROLE,
 
@@ -118,7 +119,7 @@ REGISTRATION_AUTHORITY = {
 # ============================================================
 # PUBLIC REGISTRATION ROLES
 #
-# Admin is NOT publicly selectable.
+# Admin and Institution Admin are NOT publicly selectable.
 # ============================================================
 
 PUBLIC_REGISTRATION_ROLES = {
@@ -132,6 +133,125 @@ PUBLIC_REGISTRATION_ROLES = {
 
 
 # ============================================================
+# ROLE NORMALIZATION
+#
+# Used only for comparing the role selected on the login
+# screen with the actual role stored in the database.
+#
+# IMPORTANT:
+# Institution Admin MUST be checked separately before Admin.
+# Otherwise "Institution Admin" contains "Admin" and could
+# accidentally be treated as the platform Admin role.
+# ============================================================
+
+def normalize_role(role_name):
+
+    if not role_name:
+        return ""
+
+    clean = (
+        str(role_name)
+        .strip()
+        .lower()
+    )
+
+    clean = (
+        clean
+        .replace(".", "")
+        .replace("/", "")
+        .replace("_", "")
+        .replace("-", "")
+        .replace(" ", "")
+    )
+
+    # --------------------------------------------------------
+    # Institution Admin
+    # --------------------------------------------------------
+
+    if clean in [
+        "institutionadmin",
+        "institutionadministrator",
+    ]:
+        return "institutionadmin"
+
+    # --------------------------------------------------------
+    # Platform Admin
+    # --------------------------------------------------------
+
+    if clean in [
+        "admin",
+        "platformadmin",
+        "platformadministrator",
+    ]:
+        return "admin"
+
+    # --------------------------------------------------------
+    # Department Coordinator
+    # --------------------------------------------------------
+
+    if clean in [
+        "departmentcoordinator",
+        "deptcoordinator",
+    ]:
+        return "deptcoordinator"
+
+    # --------------------------------------------------------
+    # Principal / Director
+    # --------------------------------------------------------
+
+    if clean in [
+        "principaldirector",
+        "principal",
+        "director",
+    ]:
+        return "principaldirector"
+
+    # --------------------------------------------------------
+    # NAAC Coordinator
+    # --------------------------------------------------------
+
+    if clean in [
+        "naaccoordinator",
+        "coordinator",
+    ]:
+        return "naaccoordinator"
+
+    # --------------------------------------------------------
+    # Committee Member
+    # --------------------------------------------------------
+
+    if clean in [
+        "committeemember",
+        "facultystaff",
+        "facultystaffmember",
+    ]:
+        return "committeemember"
+
+    # --------------------------------------------------------
+    # Data Approver
+    # --------------------------------------------------------
+
+    if clean in [
+        "dataapprover",
+        "dataapproval",
+    ]:
+        return "dataapprover"
+
+    # --------------------------------------------------------
+    # Reviewer
+    # --------------------------------------------------------
+
+    if clean in [
+        "reviewer",
+        "peerteam",
+        "dwreviewer",
+    ]:
+        return "reviewer"
+
+    return clean
+
+
+# ============================================================
 # GET ROLE BY ID
 # ============================================================
 
@@ -139,12 +259,15 @@ def get_role_by_id(
     db: Session,
     role_id: int | None,
 ):
+
     if not role_id:
         return None
 
     return (
         db.query(Role)
-        .filter(Role.id == role_id)
+        .filter(
+            Role.id == role_id
+        )
         .first()
     )
 
@@ -157,6 +280,7 @@ def get_role_name(
     db: Session,
     role_id: int | None,
 ):
+
     role = get_role_by_id(
         db,
         role_id,
@@ -176,6 +300,7 @@ def get_required_approver_role(
     db: Session,
     requested_role_id: int,
 ):
+
     requested_role = get_role_by_id(
         db,
         requested_role_id,
@@ -208,6 +333,7 @@ def get_required_approver_name(
     db: Session,
     requested_role_id: int,
 ):
+
     approver_role = get_required_approver_role(
         db,
         requested_role_id,
@@ -296,70 +422,16 @@ def login(
 
     if login_data.role:
 
-        def normalize_role(role_name):
+        selected_role = normalize_role(
+            login_data.role
+        )
 
-            if not role_name:
-                return ""
+        actual_role = normalize_role(
+            actual_role_name
+        )
 
-            clean = (
-                role_name
-                .strip()
-                .lower()
-            )
+        if selected_role != actual_role:
 
-            clean = (
-                clean
-                .replace(".", "")
-                .replace("/", "")
-                .replace("_", "")
-                .replace("-", "")
-                .replace(" ", "")
-            )
-
-            # Existing project role mappings
-            if clean in [
-                "departmentcoordinator",
-                "deptcoordinator",
-            ]:
-                return "deptcoordinator"
-
-            if clean in [
-                "principaldirector",
-                "principal",
-            ]:
-                return "principaldirector"
-
-            if clean in [
-                "naaccoordinator",
-                "coordinator",
-            ]:
-                return "naaccoordinator"
-
-            if clean in [
-                "committeemember",
-                "facultystaff",
-                "facultystaffmember",
-            ]:
-                return "committeemember"
-
-            if clean in [
-                "dataapprover",
-            ]:
-                return "dataapprover"
-
-            if clean in [
-                "reviewer",
-                "peerteam",
-                "dwreviewer",
-            ]:
-                return "reviewer"
-
-            return clean
-
-        if (
-            normalize_role(login_data.role)
-            != normalize_role(actual_role_name)
-        ):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=(
@@ -604,8 +676,6 @@ def get_registration_institutions(
 # GET FACULTIES
 #
 # Public endpoint used by registration page.
-#
-# institution_id is optional.
 # ============================================================
 
 @router.get("/faculties")
@@ -651,8 +721,6 @@ def get_registration_faculties(
 # GET DEPARTMENTS
 #
 # Public endpoint used by registration page.
-#
-# institution_id and faculty_id are optional.
 # ============================================================
 
 @router.get("/departments")
@@ -758,6 +826,23 @@ def register(
             detail=(
                 "Admin accounts cannot be created "
                 "through public registration."
+            )
+        )
+
+    # --------------------------------------------------------
+    # Institution Admin cannot be requested publicly
+    #
+    # Institution Admin is assigned through the
+    # institution-management workflow.
+    # --------------------------------------------------------
+
+    if requested_role.name == INSTITUTION_ADMIN_ROLE:
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Institution Admin accounts cannot be "
+                "created through public registration."
             )
         )
 
@@ -907,8 +992,7 @@ def register(
     # --------------------------------------------------------
     # Create registration request
     #
-    # Faculty is NOT stored in registration_requests.
-    # It is derived from Department.faculty_id.
+    # Faculty is derived from Department.faculty_id.
     # --------------------------------------------------------
 
     registration_request = RegistrationRequest(

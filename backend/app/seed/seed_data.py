@@ -36,6 +36,10 @@ def seed_data():
                 "Institution-level approval and monitoring"
             ),
             (
+              "Institution Admin",
+              "Manages institution profile, departments, users, and role assignments"
+            ),
+            (
                 "Admin",
                 "System and user administration"
             ),

@@ -9,6 +9,7 @@ from app.models.department import Department
 from app.models.criterion import Criterion
 from app.models.submission import Submission
 from app.models.document import Document
+from app.models.document_version import DocumentVersion
 from app.models.review import Review
 from app.models.notification import Notification
 from app.models.registration_request import RegistrationRequest
@@ -33,6 +34,7 @@ __all__ = [
     "Criterion",
     "Submission",
     "Document",
+    "DocumentVersion",
     "Review",
     "Notification",
     "RegistrationRequest",

@@ -23,9 +23,15 @@ from app.models import (
     Criterion,
     Submission,
     Document,
+    DocumentVersion,
     Review,
     Notification,
     RegistrationRequest,
+    Faculty,
+    InstitutionRequest,
+    Section,
+    Metric,
+    EvidenceRequirement,
 )
 
 # Load .env
@@ -74,7 +80,10 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
 
-    database_url = os.getenv("DATABASE_URL", "sqlite:///./eduverse_naac.db")
+    database_url = os.getenv(
+        "DATABASE_URL",
+        "sqlite:///./eduverse_naac.db"
+    )
 
     try:
         connectable = engine_from_config(
@@ -84,15 +93,21 @@ def run_migrations_online() -> None:
             prefix="sqlalchemy.",
             poolclass=pool.NullPool,
         )
+
         with connectable.connect() as connection:
+
             context.configure(
                 connection=connection,
                 target_metadata=target_metadata,
             )
+
             with context.begin_transaction():
                 context.run_migrations()
+
     except Exception:
+
         database_url = "sqlite:///./eduverse_naac.db"
+
         connectable = engine_from_config(
             {
                 "sqlalchemy.url": database_url
@@ -100,11 +115,14 @@ def run_migrations_online() -> None:
             prefix="sqlalchemy.",
             poolclass=pool.NullPool,
         )
+
         with connectable.connect() as connection:
+
             context.configure(
                 connection=connection,
                 target_metadata=target_metadata,
             )
+
             with context.begin_transaction():
                 context.run_migrations()
 

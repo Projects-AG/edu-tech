@@ -114,7 +114,7 @@ def seed_role_permissions():
                 )
 
         # ==========================================
-        # COORDINATOR
+        # NAAC COORDINATOR
         # ==========================================
 
         coordinator_modules = [
@@ -154,7 +154,7 @@ def seed_role_permissions():
                     permission
                 )
 
-        # Institution Management - Coordinator
+        # Institution Management - NAAC Coordinator
         for permission in [
             "View",
             "Create",
@@ -186,17 +186,42 @@ def seed_role_permissions():
             "REPORTS"
         ]
 
-        # Cleanup any existing write/submit permissions for Committee Member
-        committee_role = get_role(db, "Committee Member")
+        # Remove unwanted write permissions
+        committee_role = get_role(
+            db,
+            "Committee Member"
+        )
+
         if committee_role:
-            unwanted_perms = db.query(Permission).filter(
-                Permission.name.in_(["Create", "Edit", "Upload", "Submit", "Delete", "Approve"])
+
+            unwanted_perms = db.query(
+                Permission
+            ).filter(
+                Permission.name.in_([
+                    "Create",
+                    "Edit",
+                    "Upload",
+                    "Submit",
+                    "Delete",
+                    "Approve"
+                ])
             ).all()
-            unwanted_ids = [p.id for p in unwanted_perms]
-            db.query(RoleModulePermission).filter(
+
+            unwanted_ids = [
+                p.id for p in unwanted_perms
+            ]
+
+            db.query(
+                RoleModulePermission
+            ).filter(
                 RoleModulePermission.role_id == committee_role.id,
-                RoleModulePermission.permission_id.in_(unwanted_ids)
-            ).delete(synchronize_session=False)
+                RoleModulePermission.permission_id.in_(
+                    unwanted_ids
+                )
+            ).delete(
+                synchronize_session=False
+            )
+
             db.commit()
 
         committee_permissions = [
@@ -388,6 +413,56 @@ def seed_role_permissions():
         )
 
         # ==========================================
+        # INSTITUTION ADMIN
+        # ==========================================
+
+        # Institution Admin manages ONLY their own
+        # institution, departments and users.
+        #
+        # They do NOT get:
+        # - NAAC configuration permissions
+        # - Criteria management
+        # - Evidence management
+        # - Submission management
+        # - Reviewer permissions
+        # - Data Approver permissions
+        # - Principal/Director permissions
+        # - Platform Admin permissions
+
+        institution_admin_permissions = {
+            "DASHBOARD": [
+                "View"
+            ],
+
+            "INSTITUTION_MANAGEMENT": [
+                "View",
+                "Create",
+                "Edit",
+                "Delete"
+            ],
+
+            "USER_MANAGEMENT": [
+                "View",
+                "Create",
+                "Edit",
+                "Delete"
+            ]
+        }
+
+        for module_code, permissions in (
+            institution_admin_permissions.items()
+        ):
+
+            for permission_name in permissions:
+
+                add_permission(
+                    db,
+                    "Institution Admin",
+                    module_code,
+                    permission_name
+                )
+
+        # ==========================================
         # SAVE
         # ==========================================
 
@@ -399,10 +474,16 @@ def seed_role_permissions():
         )
 
     except Exception as e:
+
         db.rollback()
-        print("Error:", e)
+
+        print(
+            "Error:",
+            e
+        )
 
     finally:
+
         db.close()
 
 

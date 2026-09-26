@@ -1,195 +1,859 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from pathlib import Path
+from uuid import uuid4
 from typing import List
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    UploadFile,
+    File,
+    Form,
+)
+
+from fastapi.responses import FileResponse
+
+from sqlalchemy.orm import Session
 
 from app.auth.dependencies import (
     get_db,
     get_current_user,
-    require_permission
 )
 
 from app.models import (
-    EvidenceRequirement,
+    Document,
+    User,
+    Submission,
     Metric,
-    User
+    EvidenceRequirement,
 )
 
-from app.schemas.evidence_requirement import (
-    EvidenceRequirementCreate,
-    EvidenceRequirementUpdate,
-    EvidenceRequirementResponse
+from app.schemas.document import (
+    DocumentCreate,
+    DocumentResponse,
+)
+
+from app.services.document_service import (
+    create_document_record,
+    replace_document_file,
 )
 
 
 router = APIRouter(
-    prefix="/evidence-requirements",
-    tags=["NAAC Evidence Requirements"]
+    prefix="/documents",
+    tags=["Documents & Evidence"]
 )
 
 
-# ============================================================
-# GET ALL EVIDENCE REQUIREMENTS
-# ============================================================
+# ================================================================
+# STORAGE
+# ================================================================
+
+UPLOAD_ROOT = (
+    Path(__file__).resolve().parents[2]
+    / "uploads"
+    / "evidence"
+)
+
+UPLOAD_ROOT.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+
+# ================================================================
+# ALLOWED FILE TYPES
+# ================================================================
+
+ALLOWED_EXTENSIONS = {
+    "pdf",
+    "doc",
+    "docx",
+    "xls",
+    "xlsx",
+    "jpg",
+    "jpeg",
+    "png",
+}
+
+
+# ================================================================
+# GET DOCUMENTS
+# ================================================================
 
 @router.get(
     "",
-    response_model=List[EvidenceRequirementResponse]
+    response_model=List[DocumentResponse]
 )
-def get_evidence_requirements(
-    metric_id: int | None = None,
-    current_user: User = Depends(get_current_user),
+def get_documents(
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db)
 ):
 
-    query = db.query(EvidenceRequirement)
+    query = db.query(Document)
 
-    if metric_id is not None:
+    if current_user.institution_id:
+
         query = query.filter(
-            EvidenceRequirement.metric_id == metric_id
+            Document.institution_id
+            == current_user.institution_id
         )
 
     return query.order_by(
-        EvidenceRequirement.id.asc()
+        Document.created_at.desc()
     ).all()
 
 
-# ============================================================
-# GET EVIDENCE REQUIREMENT BY ID
-# ============================================================
+# ================================================================
+# PREVIEW EVIDENCE
+# ================================================================
 
 @router.get(
-    "/{evidence_id}",
-    response_model=EvidenceRequirementResponse
+    "/{document_id}/preview"
 )
-def get_evidence_requirement(
-    evidence_id: int,
-    current_user: User = Depends(get_current_user),
+def preview_document(
+    document_id: int,
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db)
 ):
 
-    evidence = db.query(EvidenceRequirement).filter(
-        EvidenceRequirement.id == evidence_id
-    ).first()
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id
+        )
+        .first()
+    )
 
-    if not evidence:
+    if not document:
+
         raise HTTPException(
             status_code=404,
-            detail="Evidence requirement not found"
+            detail="Document not found"
         )
 
-    return evidence
+    # ------------------------------------------------------------
+    # Institution permission
+    # ------------------------------------------------------------
+
+    if (
+        current_user.institution_id
+        and document.institution_id
+        != current_user.institution_id
+    ):
+
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot access this document"
+        )
+
+    # ------------------------------------------------------------
+    # Convert stored relative path
+    # ------------------------------------------------------------
+
+    relative_path = document.file_path
+
+    if relative_path.startswith("/"):
+        relative_path = relative_path[1:]
+
+    project_root = (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+    )
+
+    file_path = (
+        project_root /
+        relative_path
+    ).resolve()
+
+    # ------------------------------------------------------------
+    # Security check
+    # ------------------------------------------------------------
+
+    upload_root = (
+        UPLOAD_ROOT.resolve()
+    )
+
+    try:
+
+        file_path.relative_to(
+            upload_root
+        )
+
+    except ValueError:
+
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid file path"
+        )
+
+    # ------------------------------------------------------------
+    # Physical file check
+    # ------------------------------------------------------------
+
+    if not file_path.exists():
+
+        raise HTTPException(
+            status_code=404,
+            detail="Evidence file not found on server"
+        )
+
+    # ------------------------------------------------------------
+    # Return inline
+    # ------------------------------------------------------------
+
+    return FileResponse(
+        path=str(file_path),
+        media_type=(
+            document.file_type
+            or "application/octet-stream"
+        ),
+        filename=file_path.name,
+        content_disposition_type="inline",
+    )
 
 
-# ============================================================
-# CREATE EVIDENCE REQUIREMENT
-# ============================================================
+# ================================================================
+# DOWNLOAD EVIDENCE
+# ================================================================
+
+@router.get(
+    "/{document_id}/download"
+)
+def download_document(
+    document_id: int,
+    current_user: User = Depends(
+        get_current_user
+    ),
+    db: Session = Depends(get_db)
+):
+
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id
+        )
+        .first()
+    )
+
+    if not document:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    # ------------------------------------------------------------
+    # Institution permission
+    # ------------------------------------------------------------
+
+    if (
+        current_user.institution_id
+        and document.institution_id
+        != current_user.institution_id
+    ):
+
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot download this document"
+        )
+
+    # ------------------------------------------------------------
+    # Convert stored relative path
+    # ------------------------------------------------------------
+
+    relative_path = document.file_path
+
+    if relative_path.startswith("/"):
+        relative_path = relative_path[1:]
+
+    project_root = (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+    )
+
+    file_path = (
+        project_root /
+        relative_path
+    ).resolve()
+
+    # ------------------------------------------------------------
+    # Security check
+    # ------------------------------------------------------------
+
+    upload_root = (
+        UPLOAD_ROOT.resolve()
+    )
+
+    try:
+
+        file_path.relative_to(
+            upload_root
+        )
+
+    except ValueError:
+
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid file path"
+        )
+
+    # ------------------------------------------------------------
+    # Physical file check
+    # ------------------------------------------------------------
+
+    if not file_path.exists():
+
+        raise HTTPException(
+            status_code=404,
+            detail="Evidence file not found on server"
+        )
+
+    # ------------------------------------------------------------
+    # Download
+    # ------------------------------------------------------------
+
+    return FileResponse(
+        path=str(file_path),
+        media_type=(
+            document.file_type
+            or "application/octet-stream"
+        ),
+        filename=file_path.name,
+        content_disposition_type="attachment",
+    )
+
+
+# ================================================================
+# CREATE DOCUMENT
+# ================================================================
 
 @router.post(
     "",
-    response_model=EvidenceRequirementResponse,
+    response_model=DocumentResponse,
     status_code=status.HTTP_201_CREATED
 )
-def create_evidence_requirement(
-    evidence_data: EvidenceRequirementCreate,
+def create_document(
+    doc_data: DocumentCreate,
     current_user: User = Depends(
-        require_permission("CRITERIA_1", "Create")
+        get_current_user
     ),
     db: Session = Depends(get_db)
 ):
 
-    # Check metric exists
-    metric = db.query(Metric).filter(
-        Metric.id == evidence_data.metric_id
-    ).first()
-
-    if not metric:
-        raise HTTPException(
-            status_code=404,
-            detail="Metric not found"
-        )
-
-    evidence = EvidenceRequirement(
-        metric_id=evidence_data.metric_id,
-        title=evidence_data.title,
-        description=evidence_data.description,
-        required=evidence_data.required,
-        allowed_file_types=evidence_data.allowed_file_types,
-        max_files=evidence_data.max_files
+    inst_id = (
+        current_user.institution_id
+        or 1
     )
 
-    db.add(evidence)
+    doc = Document(
+        institution_id=inst_id,
+        submission_id=doc_data.submission_id,
+        uploaded_by=current_user.id,
+        title=doc_data.title,
+        file_path=doc_data.file_path,
+        file_type=doc_data.file_type,
+        file_size=doc_data.file_size,
+        status="Uploaded",
+    )
+
+    db.add(doc)
+
     db.commit()
-    db.refresh(evidence)
 
-    return evidence
+    db.refresh(doc)
+
+    return doc
 
 
-# ============================================================
-# UPDATE EVIDENCE REQUIREMENT
-# ============================================================
+# ================================================================
+# UPLOAD NEW EVIDENCE
+# ================================================================
+
+@router.post(
+    "/upload",
+    response_model=DocumentResponse,
+    status_code=status.HTTP_201_CREATED
+)
+async def upload_document(
+    file: UploadFile = File(...),
+    submission_id: int | None = Form(None),
+    title: str | None = Form(None),
+    current_user: User = Depends(
+        get_current_user
+    ),
+    db: Session = Depends(get_db)
+):
+
+    # ------------------------------------------------------------
+    # File validation
+    # ------------------------------------------------------------
+
+    if not file.filename:
+
+        raise HTTPException(
+            status_code=400,
+            detail="No file selected"
+        )
+
+    original_name = Path(
+        file.filename
+    ).name
+
+    extension = (
+        Path(original_name)
+        .suffix
+        .lower()
+        .replace(".", "")
+    )
+
+    if extension not in ALLOWED_EXTENSIONS:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Unsupported file type. "
+                "Allowed types: "
+                + ", ".join(
+                    sorted(
+                        ALLOWED_EXTENSIONS
+                    )
+                )
+            )
+        )
+
+    submission = None
+    evidence_requirement = None
+
+    # ============================================================
+    # SUBMISSION VALIDATION
+    # ============================================================
+
+    if submission_id is not None:
+
+        submission = (
+            db.query(Submission)
+            .filter(
+                Submission.id ==
+                submission_id
+            )
+            .first()
+        )
+
+        if not submission:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Submission not found"
+            )
+
+        # --------------------------------------------------------
+        # Institution ownership
+        # --------------------------------------------------------
+
+        if (
+            current_user.institution_id
+            and submission.institution_id
+            != current_user.institution_id
+        ):
+
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "You cannot upload evidence "
+                    "to another institution's submission"
+                )
+            )
+
+        # --------------------------------------------------------
+        # Editable status
+        # --------------------------------------------------------
+
+        if submission.status not in {
+            "Draft",
+            "Changes Requested",
+            "Resubmitted",
+        }:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Evidence can only be uploaded "
+                    "while the submission is editable"
+                )
+            )
+
+        # --------------------------------------------------------
+        # Find metric
+        # --------------------------------------------------------
+
+        metric = None
+
+        if submission.metric_code:
+
+            metric = (
+                db.query(Metric)
+                .filter(
+                    Metric.code ==
+                    submission.metric_code
+                )
+                .first()
+            )
+
+        # --------------------------------------------------------
+        # Evidence requirement
+        # --------------------------------------------------------
+
+        if metric:
+
+            evidence_requirement = (
+                db.query(
+                    EvidenceRequirement
+                )
+                .filter(
+                    EvidenceRequirement.metric_id
+                    == metric.id
+                )
+                .first()
+            )
+
+        # --------------------------------------------------------
+        # Evidence type validation
+        # --------------------------------------------------------
+
+        if evidence_requirement:
+
+            allowed_types = {
+                item.strip().lower()
+                for item in (
+                    evidence_requirement
+                    .allowed_file_types
+                    .split(",")
+                    if evidence_requirement
+                    .allowed_file_types
+                    else []
+                )
+            }
+
+            if (
+                allowed_types
+                and extension
+                not in allowed_types
+            ):
+
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"File type '.{extension}' "
+                        "is not allowed for this metric"
+                    )
+                )
+
+            existing_count = (
+                db.query(Document)
+                .filter(
+                    Document.submission_id
+                    == submission_id
+                )
+                .count()
+            )
+
+            max_files = (
+                evidence_requirement.max_files
+                or 5
+            )
+
+            if existing_count >= max_files:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Maximum of {max_files} "
+                        "evidence files allowed"
+                    )
+                )
+
+    # ============================================================
+    # SAVE FILE
+    # ============================================================
+
+    folder_name = (
+        f"submission_{submission_id}"
+        if submission_id
+        else "general"
+    )
+
+    upload_dir = (
+        UPLOAD_ROOT /
+        folder_name
+    )
+
+    upload_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    stored_name = (
+        f"{uuid4().hex}.{extension}"
+    )
+
+    destination = (
+        upload_dir /
+        stored_name
+    )
+
+    file_size = 0
+
+    with destination.open("wb") as buffer:
+
+        while True:
+
+            chunk = await file.read(
+                1024 * 1024
+            )
+
+            if not chunk:
+                break
+
+            buffer.write(chunk)
+
+            file_size += len(chunk)
+
+    # ============================================================
+    # RELATIVE PATH
+    # ============================================================
+
+    relative_path = (
+        f"/uploads/evidence/"
+        f"{folder_name}/"
+        f"{stored_name}"
+    )
+
+    # ============================================================
+    # CREATE DOCUMENT + VERSION 1
+    # ============================================================
+
+    document = create_document_record(
+        db=db,
+        user=current_user,
+        title=(
+            title.strip()
+            if title
+            else original_name
+        ),
+        file_path=relative_path,
+        file_type=(
+            file.content_type
+            or extension
+        ),
+        file_size=file_size,
+        submission_id=submission_id,
+    )
+
+    return document
+
+
+# ================================================================
+# REPLACE EVIDENCE
+# ================================================================
 
 @router.put(
-    "/{evidence_id}",
-    response_model=EvidenceRequirementResponse
+    "/{document_id}/replace",
+    response_model=DocumentResponse
 )
-def update_evidence_requirement(
-    evidence_id: int,
-    evidence_data: EvidenceRequirementUpdate,
+async def replace_document(
+    document_id: int,
+    file: UploadFile = File(...),
     current_user: User = Depends(
-        require_permission("CRITERIA_1", "Update")
+        get_current_user
     ),
     db: Session = Depends(get_db)
 ):
 
-    evidence = db.query(EvidenceRequirement).filter(
-        EvidenceRequirement.id == evidence_id
-    ).first()
+    # ------------------------------------------------------------
+    # File validation
+    # ------------------------------------------------------------
 
-    if not evidence:
+    if not file.filename:
+
         raise HTTPException(
-            status_code=404,
-            detail="Evidence requirement not found"
+            status_code=400,
+            detail="No file selected"
         )
 
-    update_data = evidence_data.model_dump(
-        exclude_unset=True
+    original_name = Path(
+        file.filename
+    ).name
+
+    extension = (
+        Path(original_name)
+        .suffix
+        .lower()
+        .replace(".", "")
     )
 
-    for key, value in update_data.items():
-        setattr(evidence, key, value)
+    if extension not in ALLOWED_EXTENSIONS:
 
-    db.commit()
-    db.refresh(evidence)
-
-    return evidence
-
-
-# ============================================================
-# DELETE EVIDENCE REQUIREMENT
-# ============================================================
-
-@router.delete("/{evidence_id}")
-def delete_evidence_requirement(
-    evidence_id: int,
-    current_user: User = Depends(
-        require_permission("CRITERIA_1", "Delete")
-    ),
-    db: Session = Depends(get_db)
-):
-
-    evidence = db.query(EvidenceRequirement).filter(
-        EvidenceRequirement.id == evidence_id
-    ).first()
-
-    if not evidence:
         raise HTTPException(
-            status_code=404,
-            detail="Evidence requirement not found"
+            status_code=400,
+            detail=(
+                "Unsupported file type. "
+                "Allowed types: "
+                + ", ".join(
+                    sorted(
+                        ALLOWED_EXTENSIONS
+                    )
+                )
+            )
         )
 
-    db.delete(evidence)
-    db.commit()
+    # ------------------------------------------------------------
+    # Find document
+    # ------------------------------------------------------------
 
-    return {
-        "message": "Evidence requirement deleted successfully"
-    }
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id ==
+            document_id
+        )
+        .first()
+    )
+
+    if not document:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    # ------------------------------------------------------------
+    # Institution validation
+    # ------------------------------------------------------------
+
+    if (
+        current_user.institution_id
+        and document.institution_id
+        != current_user.institution_id
+    ):
+
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "You cannot replace this document"
+            )
+        )
+
+    # ------------------------------------------------------------
+    # Submission validation
+    # ------------------------------------------------------------
+
+    if document.submission_id:
+
+        submission = (
+            db.query(Submission)
+            .filter(
+                Submission.id ==
+                document.submission_id
+            )
+            .first()
+        )
+
+        if submission:
+
+            if submission.status not in {
+                "Draft",
+                "Changes Requested",
+                "Resubmitted",
+            }:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Evidence can only be replaced "
+                        "while the submission is editable"
+                    )
+                )
+
+    # ============================================================
+    # SAVE NEW FILE
+    # ============================================================
+
+    folder_name = (
+        f"submission_{document.submission_id}"
+        if document.submission_id
+        else "general"
+    )
+
+    upload_dir = (
+        UPLOAD_ROOT /
+        folder_name
+    )
+
+    upload_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    stored_name = (
+        f"{uuid4().hex}.{extension}"
+    )
+
+    destination = (
+        upload_dir /
+        stored_name
+    )
+
+    file_size = 0
+
+    with destination.open("wb") as buffer:
+
+        while True:
+
+            chunk = await file.read(
+                1024 * 1024
+            )
+
+            if not chunk:
+                break
+
+            buffer.write(chunk)
+
+            file_size += len(chunk)
+
+    # ============================================================
+    # RELATIVE PATH
+    # ============================================================
+
+    relative_path = (
+        f"/uploads/evidence/"
+        f"{folder_name}/"
+        f"{stored_name}"
+    )
+
+    # ============================================================
+    # CREATE NEW VERSION
+    # ============================================================
+
+    updated_document = (
+        replace_document_file(
+            db=db,
+            user=current_user,
+            document_id=document_id,
+            file_path=relative_path,
+            file_type=(
+                file.content_type
+                or extension
+            ),
+            file_size=file_size,
+        )
+    )
+
+    return updated_document

@@ -27,6 +27,12 @@ import Reports from "../pages/Reports";
 import Notifications from "../pages/Notifications";
 import Institution from "../pages/Institution";
 import Unauthorized from "../pages/Unauthorized";
+// =========================================
+// REVIEWER PAGES
+// =========================================
+import ReviewerQueue from "../pages/Reviews/ReviewerQueue";
+import DataApproverReview from "../pages/Reviews/DataApproverReview";
+import EvidenceReview from "../pages/Reviews/EvidenceReview";
 
 // =========================================
 // ADMIN PAGES
@@ -236,10 +242,6 @@ export const AppRoutes = () => {
 
         {/* =========================================
             CRITERION DETAIL
-
-            No criteria.view restriction here,
-            because NAAC Coordinator should be able
-            to open the accreditation workflow.
         ========================================= */}
 
         <Route
@@ -258,12 +260,6 @@ export const AppRoutes = () => {
 
         {/* =========================================
             METRIC SUBMISSION
-
-            Example:
-            /criteria/1/metrics/7/submit
-
-            1 = Criterion 1
-            7 = Metric 1.3.2
         ========================================= */}
 
         <Route
@@ -304,6 +300,48 @@ export const AppRoutes = () => {
         />
 
         {/* =========================================
+            REVIEWER QUEUE
+            REVIEWER ONLY
+
+            Shows submissions available for review.
+        ========================================= */}
+
+        <Route
+          path="/reviewer/queue"
+          element={
+            <ProtectedRoute role="Reviewer">
+              <ReviewerQueue />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =========================================
+            EVIDENCE REVIEW
+            REVIEWER ONLY
+
+            Example:
+            /reviewer/submissions/12
+        ========================================= */}
+
+        <Route
+          path="/reviewer/submissions/:id"
+          element={
+            <ProtectedRoute role="Reviewer">
+              <EvidenceReview />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+  path="/approver/submissions/:id"
+  element={
+    <ProtectedRoute role="Data Approver">
+      <DataApproverReview />
+    </ProtectedRoute>
+  }
+/>
+
+        {/* =========================================
             REPORTS
         ========================================= */}
 
@@ -333,12 +371,6 @@ export const AppRoutes = () => {
         {/* =========================================
             USER MANAGEMENT
             ADMIN + INSTITUTION ADMIN
-
-            Admin:
-            - Manage all platform users
-
-            Institution Admin:
-            - Manage users of their own institution
         ========================================= */}
 
         <Route
