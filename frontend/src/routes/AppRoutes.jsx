@@ -35,6 +35,13 @@ import ReviewerQueue from "../pages/Reviews/ReviewerQueue";
 import EvidenceReview from "../pages/Reviews/EvidenceReview";
 
 // =========================================
+// COMMITTEE PAGES
+// =========================================
+import CommitteeList from "../pages/Committees/CommitteeList";
+import CommitteeForm from "../pages/Committees/CommitteeForm";
+import CommitteeMembers from "../pages/Committees/CommitteeMembers";
+
+// =========================================
 // ADMIN PAGES
 // =========================================
 import InstitutionManagement from "../pages/Admin/InstitutionManagement";
@@ -331,6 +338,79 @@ export const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+
+        {/* =========================================
+            COMMITTEE MANAGEMENT
+            ADMIN + INSTITUTION ADMIN
+            + NAAC COORDINATOR
+            + PRINCIPAL / DIRECTOR
+        ========================================= */}
+
+        <Route
+          path="/committees"
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "Institution Admin",
+                "NAAC Coordinator",
+                "Principal / Director",
+              ]}
+            >
+              <CommitteeList />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =========================================
+            CREATE COMMITTEE
+        ========================================= */}
+
+        <Route
+          path="/committees/new"
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "Institution Admin",
+                "NAAC Coordinator",
+                "Principal / Director",
+              ]}
+            >
+              <CommitteeForm />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =========================================
+            EDIT COMMITTEE
+            Example:
+            /committees/1/edit
+        ========================================= */}
+
+        <Route
+          path="/committees/:id/edit"
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "Institution Admin",
+                "NAAC Coordinator",
+                "Principal / Director",
+              ]}
+            >
+              <CommitteeForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+           path="/committees/:id/members"
+           element={
+             <ProtectedRoute role="NAAC Coordinator">
+          <CommitteeMembers />
+             </ProtectedRoute>
+                  }
+          />
 
         {/* =========================================
             REPORTS
