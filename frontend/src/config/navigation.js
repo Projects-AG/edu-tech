@@ -49,6 +49,16 @@ export const NAVIGATION_CONFIG = {
       icon: Award,
     },
 
+    // ========================================================
+    // PHASE 7 - COMMITTEE MANAGEMENT
+    // ========================================================
+
+    {
+      label: "Committees",
+      path: "/committees",
+      icon: Users,
+    },
+
     {
       label: "Documents & Evidence",
       path: "/documents",
@@ -136,6 +146,7 @@ export const NAVIGATION_CONFIG = {
   // They DO NOT get:
   // Review & Approval
   // Reports
+  // Committee Management
   // NAAC structural administration
   // ==========================================================
 
@@ -323,6 +334,7 @@ export const NAVIGATION_CONFIG = {
   //
   // Not allowed:
   // NAAC Criteria
+  // Committee Management
   // Documents & Evidence
   // Submissions
   // Review & Approval
