@@ -73,42 +73,67 @@ def run_migrations_offline() -> None:
 # ONLINE MIGRATIONS
 # --------------------------------------------------
 
+# def run_migrations_online() -> None:
+
+#     database_url = os.getenv("DATABASE_URL", "sqlite:///./eduverse_naac.db")
+
+#     try:
+#         connectable = engine_from_config(
+#             {
+#                 "sqlalchemy.url": database_url
+#             },
+#             prefix="sqlalchemy.",
+#             poolclass=pool.NullPool,
+#         )
+#         with connectable.connect() as connection:
+#             context.configure(
+#                 connection=connection,
+#                 target_metadata=target_metadata,
+#             )
+#             with context.begin_transaction():
+#                 context.run_migrations()
+#     except Exception:
+#         database_url = "sqlite:///./eduverse_naac.db"
+#         connectable = engine_from_config(
+#             {
+#                 "sqlalchemy.url": database_url
+#             },
+#             prefix="sqlalchemy.",
+#             poolclass=pool.NullPool,
+#         )
+#         with connectable.connect() as connection:
+#             context.configure(
+#                 connection=connection,
+#                 target_metadata=target_metadata,
+#             )
+#             with context.begin_transaction():
+#                 context.run_migrations()
+
 def run_migrations_online() -> None:
 
-    database_url = os.getenv("DATABASE_URL", "sqlite:///./eduverse_naac.db")
+    database_url = os.getenv("DATABASE_URL")
 
-    try:
-        connectable = engine_from_config(
-            {
-                "sqlalchemy.url": database_url
-            },
-            prefix="sqlalchemy.",
-            poolclass=pool.NullPool,
+    if not database_url:
+        raise RuntimeError(
+            "DATABASE_URL not found in .env file"
         )
-        with connectable.connect() as connection:
-            context.configure(
-                connection=connection,
-                target_metadata=target_metadata,
-            )
-            with context.begin_transaction():
-                context.run_migrations()
-    except Exception:
-        database_url = "sqlite:///./eduverse_naac.db"
-        connectable = engine_from_config(
-            {
-                "sqlalchemy.url": database_url
-            },
-            prefix="sqlalchemy.",
-            poolclass=pool.NullPool,
-        )
-        with connectable.connect() as connection:
-            context.configure(
-                connection=connection,
-                target_metadata=target_metadata,
-            )
-            with context.begin_transaction():
-                context.run_migrations()
 
+    connectable = engine_from_config(
+        {
+            "sqlalchemy.url": database_url
+        },
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
 
 # --------------------------------------------------
 # RUN MIGRATION
