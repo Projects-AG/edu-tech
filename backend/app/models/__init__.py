@@ -15,6 +15,9 @@ from app.models.registration_request import RegistrationRequest
 from app.models.faculty import Faculty
 from app.models.institution_request import InstitutionRequest
 from app.models.document_version import DocumentVersion
+from app.models.committee import Committee
+from app.models.committee_member import CommitteeMember
+from app.models.committee_assignment import CommitteeCriterionAssignment
 
 # NAAC structure
 from app.models.section import Section
@@ -42,4 +45,6 @@ __all__ = [
     "Section",
     "Metric",
     "EvidenceRequirement",
+    "Committee",
+    "CommitteeMember",
 ]

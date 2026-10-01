@@ -19,6 +19,8 @@ from app.models import (
     Criterion,
     Department,
     Metric,
+    CommitteeMember,
+    CommitteeCriterionAssignment,
 )
 from app.schemas.submission import (
     SubmissionCreate,
@@ -33,6 +35,7 @@ from app.schemas.submission import (
 )
 
 from app.schemas.review import ReviewResponse
+
 
 
 router = APIRouter(
@@ -295,12 +298,31 @@ def require_reviewer_permission(
         db
     )
 
-    if role_name != REVIEWER_ROLE:
+    is_reviewer = role_name == REVIEWER_ROLE
 
+    is_assigned_committee_member = False
+
+    if role_name == "Committee Member":
+        is_assigned_committee_member = (
+            db.query(CommitteeCriterionAssignment)
+            .join(
+                CommitteeMember,
+                CommitteeMember.id
+                == CommitteeCriterionAssignment.committee_member_id
+            )
+            .filter(
+                CommitteeMember.user_id == current_user.id,
+                CommitteeCriterionAssignment.criterion_id == submission.criterion_id
+            )
+                .first()
+                is not None
+        )
+
+    if not is_reviewer and not is_assigned_committee_member:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Reviewers can perform this action"
-        )
+            detail="User is not assigned to this criterion"
+     )
 
     module_code = get_submission_criterion_module(
         submission,
