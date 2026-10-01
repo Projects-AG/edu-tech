@@ -17,8 +17,7 @@ def send_notification(
         is_read=False
     )
     db.add(notif)
-    db.commit()
-    db.refresh(notif)
+    db.flush()  # Flush to get the ID of the new notification
     return notif
 
 
@@ -45,4 +44,4 @@ def notify_role_users(
                 is_read=False
             )
             db.add(notif)
-    db.commit()
+    db.flush()

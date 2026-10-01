@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_db, get_current_user
+from app.services.review_service import create_review_decision
+
 from app.models import (
     Submission,
     User,
@@ -29,6 +31,8 @@ from app.schemas.submission import (
     FinalApprovalRequest,
     WorkflowActionResponse,
 )
+
+from app.schemas.review import ReviewResponse
 
 
 router = APIRouter(
@@ -590,6 +594,22 @@ def create_submission(
 
     institution_id = current_user.institution_id
 
+    # --------------------------------------------------------
+    # Validate requested institution
+    # --------------------------------------------------------
+
+    if (
+        sub_data.institution_id is not None
+        and sub_data.institution_id != institution_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You cannot create a submission "
+                "for another institution"
+            )
+        )
+
     # ========================================================
     # DEPARTMENT
     # ========================================================
@@ -754,7 +774,7 @@ def create_submission(
 
     submission = Submission(
         institution_id=institution_id,
-        cycle_id=None,
+        cycle_id=sub_data.cycle_id,
         criterion_id=sub_data.criterion_id,
         department_id=department_id,
         user_id=current_user.id,
@@ -776,6 +796,101 @@ def create_submission(
         raise
 
     return submission
+
+
+# ============================================================
+# DATA APPROVER QUEUE
+# ============================================================
+
+@router.get(
+    "/approver-queue",
+    response_model=List[SubmissionResponse]
+)
+def get_approver_queue(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+
+    role_name = require_rbac_permission(
+        current_user,
+        db,
+        "FORMS_DATA",
+        "Approve"
+    )
+
+    if role_name != DATA_APPROVER_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Data Approvers can access the approver queue"
+        )
+
+    query = (
+        db.query(Submission)
+        .filter(
+            Submission.status == "Approved",
+            Submission.approved_by.is_(None)
+        )
+    )
+
+    if current_user.institution_id:
+        query = query.filter(
+            Submission.institution_id
+            == current_user.institution_id
+        )
+
+    return (
+        query
+        .order_by(Submission.updated_at.asc())
+        .all()
+    )
+
+
+# ============================================================
+# FINAL APPROVER QUEUE
+# ============================================================
+
+@router.get(
+    "/final-approver-queue",
+    response_model=List[SubmissionResponse]
+)
+def get_final_approver_queue(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+
+    role_name = require_rbac_permission(
+        current_user,
+        db,
+        "FORMS_DATA",
+        "Approve"
+    )
+
+    if role_name != FINAL_APPROVER_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Principal / Director can access the final approval queue"
+        )
+
+    query = (
+        db.query(Submission)
+        .filter(
+            Submission.status == "Approved",
+            Submission.approved_by.is_not(None),
+            Submission.final_approved_by.is_(None)
+        )
+    )
+
+    if current_user.institution_id:
+        query = query.filter(
+            Submission.institution_id
+            == current_user.institution_id
+        )
+
+    return (
+        query
+        .order_by(Submission.approved_at.asc())
+        .all()
+    )
 
 
 # ============================================================
@@ -1336,64 +1451,79 @@ def review_submission(
                     f"of {max_score}"
                 )
             )
-
     # ========================================================
-    # CREATE REVIEW
+    # CREATE REVIEW DECISION THROUGH SERVICE
     # ========================================================
 
-    review = Review(
+    review = create_review_decision(
+        db=db,
         submission_id=submission.id,
-        reviewer_id=current_user.id,
-        status=review_data.status,
+        reviewer_user=current_user,
+        review_status=review_data.status,
         comments=review_data.comments,
         score=review_data.score,
         max_score=max_score,
     )
 
-    db.add(review)
-
-    if review_data.status == "Approved":
-
-        submission.status = "Approved"
-
-    elif review_data.status == "Changes Requested":
-
-        submission.status = "Changes Requested"
-
-        submission.change_request_reason = (
-            review_data.comments
-        )
+    if review_data.status == "Changes Requested":
+        submission.change_request_reason = review_data.comments
 
     elif review_data.status == "Rejected":
-
-        submission.status = "Rejected"
-
-        submission.rejection_reason = (
-            review_data.comments
-        )
+        submission.rejection_reason = review_data.comments
 
     submission.reviewed_by = current_user.id
     submission.reviewed_at = datetime.utcnow()
     submission.updated_at = datetime.utcnow()
 
     try:
-
         db.commit()
         db.refresh(submission)
 
     except Exception:
-
         db.rollback()
         raise
 
     return {
-        "message": (
-            f"Reviewer action completed: "
-            f"{review_data.status}"
-        ),
+        "message": "Review decision recorded successfully",
         "submission": submission,
     }
 
+# ============================================================
+# REVIEW HISTORY
+# ============================================================
+
+@router.get(
+    "/{sub_id}/reviews",
+    response_model=List[ReviewResponse]
+)
+def get_review_history(
+    sub_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+
+    submission = get_submission_or_404(
+        sub_id,
+        db
+    )
+
+    verify_institution_access(
+        submission,
+        current_user
+    )
+
+    reviews = (
+        db.query(Review)
+        .filter(
+            Review.submission_id == submission.id
+        )
+        .order_by(
+            Review.created_at.asc()
+        )
+        .all()
+    )
+
+    return reviews
 
 # ============================================================
 # RESUBMIT
@@ -1727,6 +1857,76 @@ def final_approve_submission(
 
 
 # ============================================================
+# FINAL REJECTION
+# ============================================================
+
+@router.post(
+    "/{sub_id}/final-reject",
+    response_model=WorkflowActionResponse
+)
+def final_reject_submission(
+    sub_id: int,
+    rejection_data: SubmissionRejectionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+
+    role_name = require_rbac_permission(
+        current_user,
+        db,
+        "FORMS_DATA",
+        "Approve"
+    )
+
+    if role_name != FINAL_APPROVER_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Principal / Director can reject final approval"
+        )
+
+    submission = get_submission_or_404(
+        sub_id,
+        db
+    )
+
+    verify_institution_access(
+        submission,
+        current_user
+    )
+
+    if submission.approved_by is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Data Approver approval is required before final rejection"
+        )
+
+    if submission.status != "Approved":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only approved submissions can be finally rejected"
+        )
+
+    submission.status = "Rejected"
+    submission.rejection_reason = rejection_data.reason
+    # submission.final_approved_by = current_user.id
+    # submission.final_approved_at = datetime.utcnow()
+    submission.updated_at = datetime.utcnow()
+
+    try:
+        db.commit()
+        db.refresh(submission)
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return {
+        "message": "Final approval rejected",
+        "submission": submission,
+    }
+
+
+# ============================================================
 # FINAL SUBMISSION
 # ============================================================
 
@@ -1850,24 +2050,22 @@ def reject_submission(
             )
         )
 
-    submission.status = "Rejected"
-
-    submission.rejection_reason = (
-        rejection_data.reason
+ 
+    # Create rejection decision through the centralized review service.
+    review = create_review_decision(
+        db=db,
+        submission_id=submission.id,
+        reviewer_user=current_user,
+        review_status="Rejected",
+        comments=rejection_data.reason,
     )
-
+    
+    submission.rejection_reason = rejection_data.reason
     submission.reviewed_by = current_user.id
     submission.reviewed_at = datetime.utcnow()
     submission.updated_at = datetime.utcnow()
 
-    review = Review(
-        submission_id=submission.id,
-        reviewer_id=current_user.id,
-        status="Rejected",
-        comments=rejection_data.reason,
-    )
-
-    db.add(review)
+  
 
     try:
 

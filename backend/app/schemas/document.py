@@ -24,3 +24,17 @@ class DocumentResponse(DocumentBase):
 
     class Config:
         from_attributes = True
+
+class DocumentVersionResponse(BaseModel):
+    id: int
+    document_id: int
+    version_number: int
+    file_path: str
+    file_type: Optional[str] = None
+    file_size: Optional[int] = None
+    uploaded_by: int
+    is_current: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

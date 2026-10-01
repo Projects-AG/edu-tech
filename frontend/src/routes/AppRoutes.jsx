@@ -34,6 +34,14 @@ import ReviewerQueue from "../pages/Reviews/ReviewerQueue";
 import DataApproverReview from "../pages/Reviews/DataApproverReview";
 import EvidenceReview from "../pages/Reviews/EvidenceReview";
 
+
+// =========================================
+// COMMITTEE PAGES
+// =========================================
+import CommitteeList from "../pages/Committees/CommitteeList";
+import CommitteeForm from "../pages/Committees/CommitteeForm";
+import CommitteeMembers from "../pages/Committees/CommitteeMembers";
+
 // =========================================
 // ADMIN PAGES
 // =========================================
@@ -332,14 +340,91 @@ export const AppRoutes = () => {
           }
         />
 
+        {/* =========================================
+            DATA APPROVER
+        ========================================= */}
+
         <Route
-  path="/approver/submissions/:id"
-  element={
-    <ProtectedRoute role="Data Approver">
-      <DataApproverReview />
-    </ProtectedRoute>
-  }
-/>
+          path="/approver/submissions/:id"
+          element={
+            <ProtectedRoute role="Data Approver">
+              <DataApproverReview />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =========================================
+            COMMITTEE MANAGEMENT
+        ========================================= */}
+
+        <Route
+          path="/committees"
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "Institution Admin",
+                "NAAC Coordinator",
+                "Principal / Director",
+              ]}
+            >
+              <CommitteeList />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =========================================
+            CREATE COMMITTEE
+        ========================================= */}
+
+        <Route
+          path="/committees/new"
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "Institution Admin",
+                "NAAC Coordinator",
+                "Principal / Director",
+              ]}
+            >
+              <CommitteeForm />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =========================================
+            EDIT COMMITTEE
+        ========================================= */}
+
+        <Route
+          path="/committees/:id/edit"
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "Institution Admin",
+                "NAAC Coordinator",
+                "Principal / Director",
+              ]}
+            >
+              <CommitteeForm />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =========================================
+            COMMITTEE MEMBERS
+        ========================================= */}
+
+        <Route
+          path="/committees/:id/members"
+          element={
+            <ProtectedRoute role="NAAC Coordinator">
+              <CommitteeMembers />
+            </ProtectedRoute>
+          }
+        />
 
         {/* =========================================
             REPORTS

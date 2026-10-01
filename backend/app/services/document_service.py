@@ -95,7 +95,6 @@ def create_document_record(
 
     return doc
 
-
 def replace_document_file(
     db: Session,
     user: User,
@@ -123,7 +122,7 @@ def replace_document_file(
             detail="Document not found"
         )
 
-    # ------------------------------------------------------------
+       # ------------------------------------------------------------
     # Institution permission
     # ------------------------------------------------------------
 
@@ -152,7 +151,46 @@ def replace_document_file(
             .first()
         )
 
-        if submission:
+        if submission and user.institution_id:
+            if (
+                submission.institution_id
+                != user.institution_id
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=(
+                        "Forbidden: Cannot replace "
+                        "another institution's submission"
+                    )
+                )
+
+    # ------------------------------------------------------------
+    # Current document version
+    # ------------------------------------------------------------
+
+    current_version = (
+        db.query(DocumentVersion)
+        .filter(
+            DocumentVersion.document_id == document.id,
+            DocumentVersion.is_current == True
+        )
+        .first()
+    )
+
+    if current_version:
+        current_version.is_current = False
+
+    next_version = (
+        db.query(DocumentVersion.version_number)
+        .filter(
+            DocumentVersion.document_id == document.id
+        )
+        .order_by(
+            DocumentVersion.version_number.desc()
+        )
+        .first()
+    )
+    if submission:
 
             if (
                 submission.status
@@ -247,6 +285,7 @@ def replace_document_file(
     document.file_type = file_type
     document.file_size = file_size
     document.status = "Uploaded"
+    document.uploaded_by = user.id
 
     # ------------------------------------------------------------
     # Save everything

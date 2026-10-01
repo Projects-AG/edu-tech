@@ -23,6 +23,29 @@ class ReviewCreate(BaseModel):
     )
 
 
+class ReviewDecisionRequest(BaseModel):
+    """
+    Request body used when an authenticated Reviewer
+    submits a decision for a submission.
+    """
+
+    status: str
+
+    comments: Optional[str] = None
+
+    # Actual score awarded by reviewer
+    score: Optional[float] = Field(
+        default=None,
+        ge=0
+    )
+
+    # Maximum score for the metric
+    max_score: Optional[float] = Field(
+        default=None,
+        gt=0
+    )
+
+
 class ReviewResponse(BaseModel):
     id: int
     submission_id: int

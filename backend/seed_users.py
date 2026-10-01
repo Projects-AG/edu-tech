@@ -55,11 +55,11 @@ try:
 
     db.commit()
 
-    print("\n🎉 User seeding completed successfully!")
+    print("\n User seeding completed successfully!")
 
 except Exception as e:
     db.rollback()
-    print("\n❌ Error:", e)
+    print("\n Error:", e)
 
 finally:
     db.close()

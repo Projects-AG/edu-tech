@@ -1,5 +1,6 @@
 from pathlib import Path
 from uuid import uuid4
+from typing import List
 
 from fastapi import (
     APIRouter,
@@ -14,12 +15,14 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models import (
     Document,
+    DocumentVersion,
     Submission,
     User,
 )
 from app.schemas.document import (
     DocumentCreate,
     DocumentResponse,
+    DocumentVersionResponse,
 )
 from app.services.document_service import (
     create_document_record,
@@ -101,6 +104,57 @@ async def get_documents(
 
 # ============================================================
 # CREATE DOCUMENT
+# GET DOCUMENT VERSION HISTORY
+# ============================================================
+
+@router.get(
+    "/{document_id}/versions",
+    response_model=List[DocumentVersionResponse]
+)
+def get_document_versions(
+    document_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id
+        )
+        .first()
+    )
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    if (
+        current_user.institution_id
+        and document.institution_id
+        != current_user.institution_id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot view another institution's document"
+        )
+
+    return (
+        db.query(DocumentVersion)
+        .filter(
+            DocumentVersion.document_id
+            == document_id
+        )
+        .order_by(
+            DocumentVersion.version_number.desc()
+        )
+        .all()
+    )
+
+
+# ============================================================
+# EXISTING RECORD CREATION
 # ============================================================
 
 @router.post(
@@ -526,6 +580,7 @@ async def download_document(
 
 # ============================================================
 # REPLACE EVIDENCE FILE
+# REPLACE DOCUMENT / CREATE NEW VERSION
 # ============================================================
 
 @router.put(
@@ -660,10 +715,6 @@ async def replace_document(
         exist_ok=True
     )
 
-    # --------------------------------------------------------
-    # Generate new physical filename
-    # --------------------------------------------------------
-
     stored_name = (
         f"{uuid4().hex}.{extension}"
     )
@@ -694,10 +745,6 @@ async def replace_document(
             buffer.write(chunk)
 
             file_size += len(chunk)
-
-    # --------------------------------------------------------
-    # Database path
-    # --------------------------------------------------------
 
     relative_path = (
         f"/uploads/evidence/"

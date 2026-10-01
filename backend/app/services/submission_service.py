@@ -7,8 +7,10 @@ VALID_TRANSITIONS = {
     "Draft": ["Submitted"],
     "Submitted": ["Under Review"],
     "Under Review": ["Approved", "Rejected", "Changes Requested"],
-    "Changes Requested": ["Submitted"],
-    "Approved": [],  # Final state
+    "Changes Requested": ["Resubmitted"],
+    "Approved": ["Final Approval", "Changes Requested", "Rejected"],  # Final state
+    "Final Approval": ["Final Submitted"],  # No further transitions
+    "Final Submitted": [],
     "Rejected": ["Draft"]  # Can revert to Draft if resubmission requested
 }
 
@@ -21,15 +23,21 @@ def transition_submission_state(
 ) -> Submission:
     current_status = submission.status or "Draft"
 
-    if new_status not in VALID_TRANSITIONS.get(current_status, []):
+    #transition validity check
+    allowed_transition = VALID_TRANSITIONS.get(current_status, [])
+
+    if new_status not in allowed_transition:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid state transition from '{current_status}' to '{new_status}'"
         )
 
-    submission.status = new_status
-    db.commit()
-    db.refresh(submission)
+    submission.status = new_status  #submission state updated
+
+    #make change visible in current transition but not committing it yet
+    db.flush()
+    
+    
 
     # Notifications
     if new_status == "Submitted":
