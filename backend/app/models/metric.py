@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    CheckConstraint,
     Column,
     Integer,
     String,
@@ -9,13 +10,38 @@ from sqlalchemy import (
     ForeignKey,
     Float,
     Boolean,
+    Index,
+    text,
 )
 
 from app.db.database import Base
 
+CATALOG_KIND_WORKING = "WORKING"
+CATALOG_KIND_OFFICIAL = "OFFICIAL"
+
 
 class Metric(Base):
     __tablename__ = "metrics"
+    __table_args__ = (
+        CheckConstraint(
+            "catalog_kind IN ('WORKING', 'OFFICIAL')",
+            name="ck_metrics_catalog_kind",
+        ),
+        CheckConstraint(
+            "(catalog_kind = 'WORKING' AND framework_id IS NULL) "
+            "OR (catalog_kind = 'OFFICIAL' AND framework_id IS NOT NULL)",
+            name="ck_metrics_catalog_framework_alignment",
+        ),
+        Index(
+            "uq_metrics_official_framework_code",
+            "framework_id",
+            "code",
+            unique=True,
+            postgresql_where=text(
+                "catalog_kind = 'OFFICIAL' AND framework_id IS NOT NULL"
+            ),
+        ),
+    )
 
     id = Column(
         Integer,
@@ -37,7 +63,7 @@ class Metric(Base):
     )
 
     title = Column(
-        String(300),
+        Text,
         nullable=False
     )
 
@@ -74,6 +100,25 @@ class Metric(Base):
         Integer,
         nullable=False,
         default=1
+    )
+
+    catalog_kind = Column(
+        String(20),
+        nullable=False,
+        default=CATALOG_KIND_WORKING,
+        server_default=CATALOG_KIND_WORKING,
+        index=True,
+    )
+
+    framework_id = Column(
+        Integer,
+        ForeignKey(
+            "naac_frameworks.id",
+            ondelete="RESTRICT",
+            name="fk_metrics_framework_id",
+        ),
+        nullable=True,
+        index=True,
     )
 
     created_at = Column(

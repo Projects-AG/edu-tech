@@ -126,7 +126,7 @@ def update_section(
     section_id: int,
     section_data: SectionUpdate,
     current_user: User = Depends(
-        require_permission("CRITERIA_1", "Update")
+        require_permission("CRITERIA_1", "Edit")
     ),
     db: Session = Depends(get_db)
 ):

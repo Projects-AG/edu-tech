@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.models import Notification, User
+from app.models import Notification, User, Role
 
 
 def send_notification(
@@ -17,7 +17,7 @@ def send_notification(
         is_read=False
     )
     db.add(notif)
-    db.flush()  # Flush to get the ID of the new notification
+    db.flush()
     return notif
 
 
@@ -29,19 +29,31 @@ def notify_role_users(
     institution_id: int = None,
     notif_type: str = "info"
 ):
-    query = db.query(User).filter(User.is_active == True)
+    """
+    Notify active users who hold the given role.
+
+    User has no Role relationship — join on role_id.
+    """
+
+    query = (
+        db.query(User)
+        .join(Role, User.role_id == Role.id)
+        .filter(
+            User.is_active == True,
+            Role.name == role_name,
+        )
+    )
+
     if institution_id:
-        query = query.filter(User.institution_id == institution_id)
-    
-    users = query.all()
-    for user in users:
-        if user.role and user.role.name == role_name:
-            notif = Notification(
-                user_id=user.id,
-                title=title,
-                message=message,
-                type=notif_type,
-                is_read=False
-            )
-            db.add(notif)
-    db.flush()
+        query = query.filter(
+            User.institution_id == institution_id
+        )
+
+    for user in query.all():
+        send_notification(
+            db=db,
+            user_id=user.id,
+            title=title,
+            message=message,
+            notif_type=notif_type,
+        )

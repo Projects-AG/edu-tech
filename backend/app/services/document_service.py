@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from app.models import Document, DocumentVersion, User, Submission
+from app.services.audit_service import record_audit
 
 
 def create_document_record(
@@ -52,6 +53,21 @@ def create_document_record(
     )
 
     db.add(version)
+
+    record_audit(
+        db,
+        user=user,
+        action="DOCUMENT_UPLOAD",
+        entity_type="Document",
+        entity_id=doc.id,
+        new_values={
+            "title": title,
+            "submission_id": submission_id,
+            "file_type": file_type,
+            "file_size": file_size,
+        },
+        institution_id=inst_id,
+    )
 
     db.commit()
     db.refresh(doc)
@@ -131,6 +147,20 @@ def replace_document_file(
     document.file_type = file_type
     document.file_size = file_size
     document.uploaded_by = user.id
+
+    record_audit(
+        db,
+        user=user,
+        action="DOCUMENT_REPLACE",
+        entity_type="Document",
+        entity_id=document.id,
+        new_values={
+            "file_type": file_type,
+            "file_size": file_size,
+            "version_number": version_number,
+        },
+        institution_id=document.institution_id,
+    )
 
     db.commit()
     db.refresh(document)

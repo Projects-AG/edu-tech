@@ -474,7 +474,7 @@ function Login() {
               </small>
 
               <strong>
-                SSR & AQAR Ready
+                SSR / AQAR preparation
               </strong>
             </div>
 
@@ -873,16 +873,6 @@ function Login() {
                 </span>
 
               </label>
-
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/forgot-password")
-                }
-                className="forgot-button"
-              >
-                Forgot Password?
-              </button>
 
             </div>
 

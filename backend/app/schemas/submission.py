@@ -14,6 +14,10 @@ class SubmissionCreate(BaseModel):
         max_length=200
     )
 
+    institution_id: Optional[int] = None
+
+    cycle_id: Optional[int] = None
+
     criterion_id: Optional[int] = None
 
     department_id: Optional[int] = None
@@ -22,6 +26,8 @@ class SubmissionCreate(BaseModel):
         default=None,
         max_length=50
     )
+
+    metric_id: Optional[int] = None
 
     data_json: Optional[str] = None
 
@@ -69,6 +75,8 @@ class SubmissionResponse(BaseModel):
     title: str
 
     metric_code: Optional[str] = None
+
+    metric_id: Optional[int] = None
 
     status: str
 

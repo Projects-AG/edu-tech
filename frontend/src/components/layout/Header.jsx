@@ -58,7 +58,7 @@ export const Header = () => {
               title="Dev Mode Role Switcher (Frontend Testing Only)"
             >
               <Shield size={14} />
-              <span>TEST ROLE: {activeRole}</span>
+              <span>TEST ROLE: {activeRole || "Unassigned"}</span>
               <ChevronDown size={14} />
             </button>
 
@@ -144,9 +144,9 @@ export const Header = () => {
         {/* USER PILL */}
         <div className="admin-pill">
           <div className="admin-pill-avatar">
-            {user?.name?.charAt(0)?.toUpperCase() || activeRole.charAt(0).toUpperCase()}
+            {user?.name?.charAt(0)?.toUpperCase() || (activeRole ? activeRole.charAt(0).toUpperCase() : "?")}
           </div>
-          <span>{user?.name || activeRole}</span>
+          <span>{user?.name || activeRole || "Unassigned"}</span>
         </div>
       </div>
     </header>

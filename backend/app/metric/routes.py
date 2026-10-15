@@ -8,7 +8,10 @@ from app.auth.dependencies import (
     require_permission
 )
 
-from app.models import Metric, Section, User
+from app.models import AccreditationCycle, Metric, Section, User
+from app.models.metric import CATALOG_KIND_OFFICIAL, CATALOG_KIND_WORKING
+from app.accreditation.routes import ensure_cycle_institution_access
+from app.services.framework_service import cycle_metric_catalog
 
 from app.schemas.metric import (
     MetricCreate,
@@ -30,11 +33,36 @@ router = APIRouter(
 @router.get("", response_model=List[MetricResponse])
 def get_metrics(
     section_id: int | None = None,
+    catalog_kind: str | None = CATALOG_KIND_WORKING,
+    cycle_id: int | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    if cycle_id is not None:
+        cycle = (
+            db.query(AccreditationCycle)
+            .filter(AccreditationCycle.id == cycle_id)
+            .first()
+        )
+        if not cycle:
+            raise HTTPException(
+                status_code=404,
+                detail="Accreditation cycle not found",
+            )
+        ensure_cycle_institution_access(db, current_user, cycle)
+        _catalog_kind, metrics = cycle_metric_catalog(db, cycle)
+        if section_id is not None:
+            metrics = [
+                item for item in metrics if item.section_id == section_id
+            ]
+        return metrics
 
     query = db.query(Metric)
+
+    if catalog_kind:
+        query = query.filter(
+            Metric.catalog_kind == catalog_kind
+        )
 
     if section_id is not None:
         query = query.filter(
@@ -56,6 +84,7 @@ def get_metrics(
 )
 def get_metric(
     metric_id: int,
+    cycle_id: int | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -69,6 +98,39 @@ def get_metric(
             status_code=404,
             detail="Metric not found"
         )
+
+    if metric.catalog_kind == CATALOG_KIND_OFFICIAL:
+        if cycle_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Official operational metrics must be requested with "
+                    "cycle_id. They are not part of the working catalogue."
+                ),
+            )
+        cycle = (
+            db.query(AccreditationCycle)
+            .filter(AccreditationCycle.id == cycle_id)
+            .first()
+        )
+        if not cycle:
+            raise HTTPException(
+                status_code=404,
+                detail="Accreditation cycle not found",
+            )
+        ensure_cycle_institution_access(db, current_user, cycle)
+        if (
+            not cycle.framework_id
+            or metric.framework_id != cycle.framework_id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Official metric does not belong to this cycle's "
+                    "framework. Working-catalogue metrics are not used "
+                    "as a substitute."
+                ),
+            )
 
     return metric
 
@@ -110,7 +172,9 @@ def create_metric(
         weightage=metric_data.weightage,
         max_score=metric_data.max_score,
         requires_evidence=metric_data.requires_evidence,
-        display_order=metric_data.display_order
+        display_order=metric_data.display_order,
+        catalog_kind=CATALOG_KIND_WORKING,
+        framework_id=None,
     )
 
     db.add(metric)
@@ -132,7 +196,7 @@ def update_metric(
     metric_id: int,
     metric_data: MetricUpdate,
     current_user: User = Depends(
-        require_permission("CRITERIA_1", "Update")
+        require_permission("CRITERIA_1", "Edit")
     ),
     db: Session = Depends(get_db)
 ):

@@ -32,6 +32,8 @@ class MetricUpdate(BaseModel):
 
 class MetricResponse(MetricBase):
     id: int
+    catalog_kind: str = "WORKING"
+    framework_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

@@ -30,11 +30,16 @@ export const ALL_ROLES = [
  * Normalize role names received from the backend.
  */
 export const normalizeRole = (roleStr) => {
-  if (!roleStr) {
-    return ROLES.NAAC_COORDINATOR;
+  if (roleStr == null) {
+    return null;
   }
 
   const cleaned = String(roleStr).trim();
+
+  if (!cleaned) {
+    return null;
+  }
+
   const lower = cleaned.toLowerCase();
 
   // IMPORTANT:

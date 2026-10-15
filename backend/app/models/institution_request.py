@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     Column,
     Integer,
     String,
@@ -78,6 +79,87 @@ class InstitutionRequest(Base):
 
     institution_type = Column(
         String(100),
+        nullable=True,
+    )
+
+    official_category = Column(
+        String(80),
+        nullable=True,
+        index=True,
+    )
+
+    affiliation_status = Column(
+        String(80),
+        nullable=True,
+    )
+
+    affiliated_university = Column(
+        String(200),
+        nullable=True,
+    )
+
+    autonomous_status = Column(
+        String(40),
+        nullable=True,
+    )
+
+    is_constituent_unit = Column(
+        Boolean,
+        nullable=True,
+    )
+
+    parent_institution_name = Column(
+        String(200),
+        nullable=True,
+    )
+
+    programme_level = Column(
+        String(30),
+        nullable=True,
+    )
+
+    existing_naac_status = Column(
+        String(80),
+        nullable=True,
+    )
+
+    previous_cycle_number = Column(
+        String(40),
+        nullable=True,
+    )
+
+    application_pathway = Column(
+        String(80),
+        nullable=True,
+    )
+
+    recommended_framework_id = Column(
+        Integer,
+        ForeignKey("naac_frameworks.id"),
+        nullable=True,
+        index=True,
+    )
+
+    recommendation_status = Column(
+        String(60),
+        nullable=True,
+        index=True,
+    )
+
+    recommendation_reason = Column(
+        Text,
+        nullable=True,
+    )
+
+    confirmed_framework_id = Column(
+        Integer,
+        ForeignKey("naac_frameworks.id"),
+        nullable=True,
+        index=True,
+    )
+
+    framework_override_reason = Column(
+        Text,
         nullable=True,
     )
 

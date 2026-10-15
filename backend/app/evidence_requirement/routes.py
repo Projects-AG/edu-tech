@@ -13,6 +13,7 @@ from app.models import (
     Metric,
     User
 )
+from app.models.metric import CATALOG_KIND_WORKING
 
 from app.schemas.evidence_requirement import (
     EvidenceRequirementCreate,
@@ -41,11 +42,18 @@ def get_evidence_requirements(
     db: Session = Depends(get_db)
 ):
 
-    query = db.query(EvidenceRequirement)
+    query = db.query(EvidenceRequirement).join(
+        Metric,
+        Metric.id == EvidenceRequirement.metric_id,
+    )
 
     if metric_id is not None:
         query = query.filter(
             EvidenceRequirement.metric_id == metric_id
+        )
+    else:
+        query = query.filter(
+            Metric.catalog_kind == CATALOG_KIND_WORKING
         )
 
     return query.order_by(
@@ -136,7 +144,7 @@ def update_evidence_requirement(
     evidence_id: int,
     evidence_data: EvidenceRequirementUpdate,
     current_user: User = Depends(
-        require_permission("CRITERIA_1", "Update")
+        require_permission("CRITERIA_1", "Edit")
     ),
     db: Session = Depends(get_db)
 ):

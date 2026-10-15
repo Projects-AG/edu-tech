@@ -26,6 +26,7 @@ from app.auth.security import (
     create_access_token,
     hash_password,
 )
+from app.services.audit_service import record_audit
 
 from app.auth.dependencies import get_current_user
 
@@ -70,6 +71,8 @@ DATA_APPROVER_ROLE = "Data Approver"
 
 PRINCIPAL_DIRECTOR_ROLE = "Principal / Director"
 
+INSTITUTION_ADMIN_ROLE = "Institution Admin"
+
 
 # ============================================================
 # REGISTRATION AUTHORITY HIERARCHY
@@ -102,7 +105,11 @@ REGISTRATION_AUTHORITY = {
     NAAC_COORDINATOR_ROLE:
         PRINCIPAL_DIRECTOR_ROLE,
 
-    # Institution Admin
+       # Institution Admin
+    INSTITUTION_ADMIN_ROLE:
+        ADMIN_ROLE,
+
+    # Principal / Director
     PRINCIPAL_DIRECTOR_ROLE:
         ADMIN_ROLE,
 
@@ -128,6 +135,7 @@ PUBLIC_REGISTRATION_ROLES = {
     REVIEWER_ROLE,
     DATA_APPROVER_ROLE,
     PRINCIPAL_DIRECTOR_ROLE,
+    INSTITUTION_ADMIN_ROLE,
 }
 
 
@@ -318,6 +326,19 @@ def login(
 
             # Existing project role mappings
             if clean in [
+                "institutionadmin",
+                "institutionadministrator",
+            ]:
+                return "institutionadmin"
+
+            if clean in [
+                "admin",
+                "platformadmin",
+                "platformadministrator",
+            ]:
+                return "admin"
+
+            if clean in [
                 "departmentcoordinator",
                 "deptcoordinator",
             ]:
@@ -388,6 +409,20 @@ def login(
 
         "department_id": user.department_id,
     })
+
+    record_audit(
+        db,
+        user=user,
+        action="LOGIN",
+        entity_type="User",
+        entity_id=user.id,
+        new_values={
+            "email": user.email,
+            "role": actual_role_name,
+        },
+        institution_id=user.institution_id,
+    )
+    db.commit()
 
     # --------------------------------------------------------
     # Login response
@@ -563,6 +598,38 @@ def get_me(
                 permissions_by_module.values()
             )
     }
+
+
+# ============================================================
+# GET PUBLIC REGISTRATION ROLES
+#
+# Public endpoint used by registration page.
+# Admin is not included.
+# ============================================================
+
+@router.get("/roles")
+def get_registration_roles(
+    db: Session = Depends(get_db)
+):
+
+    roles = (
+        db.query(Role)
+        .filter(
+            Role.name.in_(
+                PUBLIC_REGISTRATION_ROLES
+            )
+        )
+        .order_by(Role.id)
+        .all()
+    )
+
+    return [
+        {
+            "id": role.id,
+            "name": role.name,
+        }
+        for role in roles
+    ]
 
 
 # ============================================================

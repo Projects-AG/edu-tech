@@ -1,13 +1,63 @@
 import api from "./api";
 
+const MIME_EXTENSIONS = {
+  "application/pdf": "pdf",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+};
+
+export const resolveDownloadFilename = (document = {}) => {
+  const title = (
+    document.title ||
+    document.original_filename ||
+    document.file_name ||
+    document.filename ||
+    ""
+  ).trim();
+
+  const fileType = String(
+    document.file_type ||
+      document.content_type ||
+      document.mime_type ||
+      ""
+  ).trim();
+
+  const extension = fileType.includes("/")
+    ? MIME_EXTENSIONS[fileType.toLowerCase()] || ""
+    : fileType.replace(/^\./, "");
+
+  if (title) {
+    if (
+      extension &&
+      !title.toLowerCase().endsWith(`.${extension.toLowerCase()}`)
+    ) {
+      return `${title}.${extension}`;
+    }
+
+    return title;
+  }
+
+  return extension
+    ? `document-${document.id}.${extension}`
+    : `document-${document.id}`;
+};
+
 const documentService = {
   // ============================================================
   // GET DOCUMENTS
   // ============================================================
 
-  getDocuments: async () => {
+  getDocuments: async (submissionId) => {
     try {
-      const response = await api.get("/documents");
+      const response = await api.get("/documents", {
+        params: submissionId
+          ? { submission_id: submissionId }
+          : undefined,
+      });
 
       console.log(
         "GET DOCUMENTS RESPONSE:",

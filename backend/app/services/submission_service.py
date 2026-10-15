@@ -1,17 +1,19 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.models import Submission, User
+from app.services.audit_service import record_audit
 from app.services.notification_service import send_notification, notify_role_users
 
 VALID_TRANSITIONS = {
     "Draft": ["Submitted"],
     "Submitted": ["Under Review"],
     "Under Review": ["Approved", "Rejected", "Changes Requested"],
-    "Changes Requested": ["Resubmitted"],
-    "Approved": ["Final Approval", "Changes Requested", "Rejected"],  # Final state
-    "Final Approval": ["Final Submitted"],  # No further transitions
+    "Changes Requested": ["Resubmitted", "Submitted"],
+    "Resubmitted": ["Under Review"],
+    "Approved": ["Final Approval", "Rejected"],
+    "Final Approval": ["Final Submitted"],
     "Final Submitted": [],
-    "Rejected": ["Draft"]  # Can revert to Draft if resubmission requested
+    "Rejected": [],
 }
 
 
@@ -32,10 +34,22 @@ def transition_submission_state(
             detail=f"Invalid state transition from '{current_status}' to '{new_status}'"
         )
 
+    old_status = current_status
     submission.status = new_status  #submission state updated
 
     #make change visible in current transition but not committing it yet
     db.flush()
+
+    record_audit(
+        db,
+        user=actor_user,
+        action="SUBMISSION_STATUS_CHANGE",
+        entity_type="Submission",
+        entity_id=submission.id,
+        old_values={"status": old_status},
+        new_values={"status": new_status, "title": submission.title},
+        institution_id=submission.institution_id,
+    )
     
     
 
@@ -63,7 +77,7 @@ def transition_submission_state(
             db=db,
             user_id=submission.user_id,
             title="Submission Approved",
-            message=f"Your submission '{submission.title}' was approved by Data Approver.",
+            message=f"Your submission '{submission.title}' was approved by the Reviewer.",
             notif_type="success"
         )
 

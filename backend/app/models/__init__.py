@@ -15,11 +15,19 @@ from app.models.registration_request import RegistrationRequest
 from app.models.faculty import Faculty
 from app.models.institution_request import InstitutionRequest
 from app.models.document_version import DocumentVersion
+from app.models.committee import Committee, CommitteeMember
+from app.models.audit_log import AuditLog
 
 # NAAC structure
 from app.models.section import Section
 from app.models.metric import Metric
 from app.models.evidence_requirement import EvidenceRequirement
+from app.models.cycle_applicable_metric import CycleApplicableMetric
+from app.models.naac_framework import (
+    NaacFramework,
+    FrameworkCriterion,
+    FrameworkMetric,
+)
 
 
 __all__ = [
@@ -39,7 +47,15 @@ __all__ = [
     "RegistrationRequest",
     "Faculty",
     "InstitutionRequest",
+    "DocumentVersion",
     "Section",
     "Metric",
     "EvidenceRequirement",
+    "CycleApplicableMetric",
+    "NaacFramework",
+    "FrameworkCriterion",
+    "FrameworkMetric",
+    "Committee",
+    "CommitteeMember",
+    "AuditLog",
 ]

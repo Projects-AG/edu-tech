@@ -1,8 +1,33 @@
 import React, { useState, useEffect } from "react";
-import { Plus, X, RefreshCw } from "lucide-react";
+import { Plus, X, Pencil, Trash2 } from "lucide-react";
 import api from "../../services/api";
+import frameworkService from "../../services/frameworkService";
+import { institutionFrameworkLabel } from "../../services/frameworkReadiness";
+import {
+  applyInstitutionRequestChange,
+  categorySpecificPayload,
+  validateOfficialCategory,
+} from "../../services/institutionRequestProfile";
 import DataTable from "../../components/common/DataTable";
 import PageHeader from "../../components/common/PageHeader";
+
+const EMPTY_INSTITUTION_FORM = {
+  name: "",
+  code: "",
+  address: "",
+  city: "",
+  state: "",
+  pincode: "",
+  institution_type: "",
+  official_category: "",
+  affiliated_university: "",
+  autonomous_status: "",
+  parent_institution_name: "",
+  is_constituent_unit: false,
+  programme_level: "",
+  established_year: "",
+  website: "",
+};
 
 export const InstitutionManagement = () => {
   // =========================================
@@ -13,23 +38,15 @@ export const InstitutionManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Add Institution Modal
+  // Add / Edit Institution Modal
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [categories, setCategories] = useState([]);
 
   // Form Data
-  const [formData, setFormData] = useState({
-    name: "",
-    code: "",
-    address: "",
-    city: "",
-    state: "",
-    pincode: "",
-    institution_type: "",
-    established_year: "",
-    website: "",
-  });
+  const [formData, setFormData] = useState(EMPTY_INSTITUTION_FORM);
 
   // =========================================
   // LOAD INSTITUTIONS
@@ -139,6 +156,10 @@ export const InstitutionManagement = () => {
 
   useEffect(() => {
     loadData();
+    frameworkService
+      .getCategories()
+      .then(setCategories)
+      .catch(() => setCategories([]));
   }, []);
 
   // =========================================
@@ -146,20 +167,58 @@ export const InstitutionManagement = () => {
   // =========================================
 
   const handleCreate = () => {
-    setFormData({
-      name: "",
-      code: "",
-      address: "",
-      city: "",
-      state: "",
-      pincode: "",
-      institution_type: "",
-      established_year: "",
-      website: "",
-    });
+    setFormData(EMPTY_INSTITUTION_FORM);
 
+    setEditingId(null);
     setFormError("");
     setShowModal(true);
+  };
+
+  const handleEdit = (institution) => {
+    setFormData({
+      name: institution.name || "",
+      code: institution.code || "",
+      address: institution.address || "",
+      city: institution.city || "",
+      state: institution.state || "",
+      pincode: institution.pincode || "",
+      institution_type: institution.institution_type || "",
+      official_category: institution.official_category || "",
+      affiliated_university: institution.affiliated_university || "",
+      autonomous_status: institution.autonomous_status || "",
+      parent_institution_name: institution.parent_institution_name || "",
+      is_constituent_unit: Boolean(institution.is_constituent_unit),
+      programme_level: institution.programme_level || "",
+      established_year: institution.established_year || "",
+      website: institution.website || "",
+    });
+
+    setEditingId(institution.id);
+    setFormError("");
+    setShowModal(true);
+  };
+
+  const handleDelete = async (institution) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${institution.name}"?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setError("");
+      await api.delete(`/institutions/${institution.id}`);
+      await loadData();
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      setError(
+        Array.isArray(detail)
+          ? detail.map((item) => item.msg).join(", ")
+          : detail || "Failed to delete institution."
+      );
+    }
   };
 
   // =========================================
@@ -167,20 +226,20 @@ export const InstitutionManagement = () => {
   // =========================================
 
   const handleChange = (e) => {
-    const {
-      name,
-      value,
-    } = e.target;
+    const { name, value, type, checked } = e.target;
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) =>
+      applyInstitutionRequestChange(
+        prev,
+        name,
+        type === "checkbox" ? checked : value
+      )
+    );
   };
 
   // =========================================
-  // SUBMIT NEW INSTITUTION
-  // POST /institutions
+  // SUBMIT INSTITUTION
+  // POST /institutions or PUT /institutions/{id}
   // =========================================
 
   const handleSubmit = async (e) => {
@@ -229,6 +288,15 @@ export const InstitutionManagement = () => {
       return;
     }
 
+    const categoryError = validateOfficialCategory(
+      formData.official_category,
+      categories
+    );
+    if (categoryError) {
+      setFormError(categoryError);
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -258,6 +326,10 @@ export const InstitutionManagement = () => {
         institution_type:
           formData.institution_type.trim(),
 
+        official_category: formData.official_category,
+
+        ...categorySpecificPayload(formData),
+
         established_year:
           formData.established_year
             ? Number(
@@ -275,22 +347,26 @@ export const InstitutionManagement = () => {
       );
 
       console.log(
-        "CREATE INSTITUTION REQUEST:",
+        editingId
+          ? "UPDATE INSTITUTION REQUEST:"
+          : "CREATE INSTITUTION REQUEST:",
         payload
       );
 
-      // =========================================
-      // POST /institutions
-      // =========================================
-
-      const response =
-        await api.post(
-          "/institutions",
-          payload
-        );
+      const response = editingId
+        ? await api.put(
+            `/institutions/${editingId}`,
+            payload
+          )
+        : await api.post(
+            "/institutions",
+            payload
+          );
 
       console.log(
-        "CREATE INSTITUTION RESPONSE:",
+        editingId
+          ? "UPDATE INSTITUTION RESPONSE:"
+          : "CREATE INSTITUTION RESPONSE:",
         response.data
       );
 
@@ -303,6 +379,7 @@ export const InstitutionManagement = () => {
       // =========================================
 
       setShowModal(false);
+      setEditingId(null);
 
       // =========================================
       // RELOAD INSTITUTIONS
@@ -327,7 +404,9 @@ export const InstitutionManagement = () => {
       } else {
         setFormError(
           detail ||
-            "Failed to create institution."
+            (editingId
+              ? "Failed to update institution."
+              : "Failed to create institution.")
         );
       }
     } finally {
@@ -361,9 +440,79 @@ export const InstitutionManagement = () => {
       dataIndex: "institution_type",
     },
     {
+      title: "NAAC Category",
+      dataIndex: "official_category",
+      render: (value) =>
+        categories.find((item) => item.code === value)?.label ||
+        value ||
+        "Not set",
+    },
+    {
+      title: "Framework",
+      dataIndex: "confirmed_framework_id",
+      render: (_value, institution) => (
+        <span title={institution.eligible_cycle_framework_reason || ""}>
+          {institutionFrameworkLabel(institution)}
+        </span>
+      ),
+    },
+    {
       title: "Status",
       dataIndex: "status",
       isStatus: true,
+    },
+    {
+      title: "Actions",
+      dataIndex: "id",
+      render: (_value, institution) => (
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => handleEdit(institution)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "5px",
+              padding: "4px 8px",
+              background: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              color: "#2563eb",
+              borderRadius: "4px",
+              fontSize: "11px",
+              fontWeight: "600",
+              cursor: "pointer",
+            }}
+          >
+            <Pencil size={12} />
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDelete(institution)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "5px",
+              padding: "4px 8px",
+              background: "#fffafa",
+              border: "1px solid #fecaca",
+              color: "#dc2626",
+              borderRadius: "4px",
+              fontSize: "11px",
+              fontWeight: "600",
+              cursor: "pointer",
+            }}
+          >
+            <Trash2 size={12} />
+            Delete
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -491,7 +640,9 @@ export const InstitutionManagement = () => {
                     color: "#172554",
                   }}
                 >
-                  Add Institution
+                  {editingId
+                    ? "Edit Institution"
+                    : "Add Institution"}
                 </h2>
 
                 <p
@@ -502,8 +653,9 @@ export const InstitutionManagement = () => {
                     color: "#64748b",
                   }}
                 >
-                  Register a new institution
-                  in EduVerse NAAC.
+                  {editingId
+                    ? "Update the registered institution details."
+                    : "Register a new institution in EduVerse NAAC."}
                 </p>
               </div>
 
@@ -713,6 +865,113 @@ export const InstitutionManagement = () => {
               </div>
 
               {/* =========================================
+                  OFFICIAL NAAC CATEGORY
+              ========================================= */}
+
+              <div style={{ marginBottom: "18px" }}>
+                <label style={LABEL_STYLE}>
+                  Official NAAC Category
+                  <span style={{ color: "#dc2626", marginLeft: "3px" }}>
+                    *
+                  </span>
+                </label>
+                <select
+                  name="official_category"
+                  value={formData.official_category}
+                  onChange={handleChange}
+                  required
+                  style={INPUT_STYLE}
+                >
+                  <option value="">Select the official HEI category</option>
+                  {categories.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+                <small style={{ fontSize: "12px", color: "#64748b" }}>
+                  The NAAC framework and version are loaded from this
+                  category. The free-text institution type is not used.
+                </small>
+              </div>
+
+              {formData.official_category === "AFFILIATED_COLLEGE" ||
+              formData.official_category === "CONSTITUENT_COLLEGE" ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "18px",
+                    marginBottom: "18px",
+                  }}
+                >
+                  <FormField
+                    label={
+                      formData.official_category === "CONSTITUENT_COLLEGE"
+                        ? "Parent University"
+                        : "Affiliating University"
+                    }
+                    name={
+                      formData.official_category === "CONSTITUENT_COLLEGE"
+                        ? "parent_institution_name"
+                        : "affiliated_university"
+                    }
+                    value={
+                      formData.official_category === "CONSTITUENT_COLLEGE"
+                        ? formData.parent_institution_name
+                        : formData.affiliated_university
+                    }
+                    onChange={handleChange}
+                    placeholder="Required to load the framework"
+                  />
+                  <div>
+                    <label style={LABEL_STYLE}>Programme Level</label>
+                    <select
+                      name="programme_level"
+                      value={formData.programme_level}
+                      onChange={handleChange}
+                      style={INPUT_STYLE}
+                    >
+                      <option value="">Not specified</option>
+                      <option value="UG">Undergraduate</option>
+                      <option value="PG">Postgraduate</option>
+                      <option value="BOTH">UG and PG</option>
+                    </select>
+                  </div>
+                </div>
+              ) : null}
+
+              {formData.official_category === "AFFILIATED_COLLEGE" ? (
+                <div style={{ marginBottom: "18px" }}>
+                  <label style={LABEL_STYLE}>Autonomous Status</label>
+                  <select
+                    name="autonomous_status"
+                    value={formData.autonomous_status}
+                    onChange={handleChange}
+                    style={INPUT_STYLE}
+                  >
+                    <option value="">Not autonomous</option>
+                    <option value="autonomous">Granted autonomy</option>
+                  </select>
+                </div>
+              ) : null}
+
+              {formData.official_category === "CONSTITUENT_COLLEGE" ? (
+                <div style={{ marginBottom: "18px" }}>
+                  <label style={{ ...LABEL_STYLE, fontWeight: 500 }}>
+                    <input
+                      type="checkbox"
+                      name="is_constituent_unit"
+                      checked={Boolean(formData.is_constituent_unit)}
+                      onChange={handleChange}
+                      style={{ marginRight: "8px" }}
+                    />
+                    Constituent unit of the parent university
+                  </label>
+                </div>
+              ) : null}
+
+              {/* =========================================
                   YEAR + WEBSITE
               ========================================= */}
 
@@ -814,7 +1073,9 @@ export const InstitutionManagement = () => {
                   }}
                 >
                   {saving
-                    ? "Creating..."
+                    ? "Saving..."
+                    : editingId
+                    ? "Update Institution"
                     : "Create Institution"}
                 </button>
               </div>
@@ -829,6 +1090,26 @@ export const InstitutionManagement = () => {
 // =========================================
 // REUSABLE FORM FIELD
 // =========================================
+
+const LABEL_STYLE = {
+  display: "block",
+  fontSize: "13px",
+  fontWeight: 600,
+  color: "#334155",
+  marginBottom: "7px",
+};
+
+const INPUT_STYLE = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "11px 13px",
+  border: "1px solid #d1d5db",
+  borderRadius: "8px",
+  outline: "none",
+  fontSize: "13px",
+  color: "#1e293b",
+  background: "#ffffff",
+};
 
 const FormField = ({
   label,

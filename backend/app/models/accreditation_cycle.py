@@ -50,6 +50,13 @@ class AccreditationCycle(Base):
         nullable=True
     )
 
+    framework_id = Column(
+        Integer,
+        ForeignKey("naac_frameworks.id"),
+        nullable=True,
+        index=True,
+    )
+
     created_by = Column(
         Integer,
         ForeignKey("users.id"),

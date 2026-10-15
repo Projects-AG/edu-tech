@@ -6,7 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_db, get_current_user
+from app.auth.registration_authority import ADMIN
 from app.services.review_service import create_review_decision
+from app.services.audit_service import record_audit
+from app.services.notification_service import (
+    send_notification,
+    notify_role_users,
+)
+from app.services.report_service import get_live_cycle
 
 from app.models import (
     Submission,
@@ -48,12 +55,44 @@ router = APIRouter(
 DATA_ENTRY_ROLES = {
     "NAAC Coordinator",
     "Dept. Coordinator",
+}
+
+SUBMISSION_VIEW_ROLES = {
+    "NAAC Coordinator",
+    "Dept. Coordinator",
     "Committee Member",
 }
 
 REVIEWER_ROLE = "Reviewer"
 DATA_APPROVER_ROLE = "Data Approver"
 FINAL_APPROVER_ROLE = "Principal / Director"
+NAAC_COORDINATOR_ROLE = "NAAC Coordinator"
+
+NO_LIVE_CYCLE_MESSAGE = (
+    "New submissions require an Active or In Progress accreditation cycle "
+    "for your institution. Draft and Archived cycles do not accept "
+    "submissions, and official-framework cycles stay Draft until the "
+    "framework is production-ready."
+)
+
+
+def notify_roles_for_submission(
+    db: Session,
+    submission: Submission,
+    role_names: list[str],
+    title: str,
+    message: str,
+    notif_type: str = "info",
+):
+    for role_name in role_names:
+        notify_role_users(
+            db=db,
+            role_name=role_name,
+            title=title,
+            message=message,
+            institution_id=submission.institution_id,
+            notif_type=notif_type,
+        )
 
 
 # ============================================================
@@ -355,23 +394,70 @@ def get_submission_or_404(
     return submission
 
 
+def require_user_institution(
+    current_user: User,
+    db: Session,
+) -> str:
+    role_name = get_user_role(current_user, db)
+
+    if role_name == ADMIN:
+        return role_name
+
+    if not current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not assigned to an institution",
+        )
+
+    return role_name
+
+
 def verify_institution_access(
     submission: Submission,
-    current_user: User
+    current_user: User,
+    db: Session,
+    *,
+    require_assigned_institution: bool = False,
 ):
+    role_name = get_user_role(current_user, db)
 
-    if (
-        current_user.institution_id
-        and submission.institution_id
-        != current_user.institution_id
-    ):
+    if role_name == ADMIN and not require_assigned_institution:
+        return
 
+    if not current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not assigned to an institution",
+        )
+
+    if submission.institution_id != current_user.institution_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
                 "Forbidden: Resource belongs "
                 "to another institution"
-            )
+            ),
+        )
+
+
+def assigned_department_id(current_user: User) -> int | None:
+    department_id = current_user.department_id
+    if not department_id:
+        return None
+    return department_id
+
+
+def require_committee_department_assignment(
+    current_user: User,
+    role_name: str,
+):
+    if (
+        role_name == "Committee Member"
+        and not assigned_department_id(current_user)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not assigned to a department",
         )
 
 
@@ -385,13 +471,15 @@ def verify_department_access(
         "Dept. Coordinator",
         "Committee Member",
     }:
+        user_department_id = assigned_department_id(current_user)
 
-        if (
-            current_user.department_id
-            and submission.department_id
-            != current_user.department_id
-        ):
+        if not user_department_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User is not assigned to a department",
+            )
 
+        if submission.department_id != user_department_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(
@@ -414,7 +502,7 @@ def get_submissions(
     db: Session = Depends(get_db)
 ):
 
-    role_name = get_user_role(
+    role_name = require_user_institution(
         current_user,
         db
     )
@@ -432,7 +520,7 @@ def get_submissions(
     # Data Entry
     # --------------------------------------------------------
 
-    if role_name in DATA_ENTRY_ROLES:
+    if role_name in SUBMISSION_VIEW_ROLES:
 
         require_rbac_permission(
             current_user,
@@ -441,17 +529,26 @@ def get_submissions(
             "View"
         )
 
-        if (
-            role_name in {
-                "Dept. Coordinator",
-                "Committee Member",
-            }
-            and current_user.department_id
-        ):
+        require_committee_department_assignment(
+            current_user,
+            role_name,
+        )
+
+        if role_name in {
+            "Dept. Coordinator",
+            "Committee Member",
+        }:
+            user_department_id = assigned_department_id(current_user)
+
+            if not user_department_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="User is not assigned to a department",
+                )
 
             query = query.filter(
                 Submission.department_id
-                == current_user.department_id
+                == user_department_id
             )
 
         return query.order_by(
@@ -771,15 +868,48 @@ def create_submission(
     # --------------------------------------------------------
     # Create submission
     # --------------------------------------------------------
+    # cycle_id is assigned from the institution's live (Active / In Progress)
+    # cycle. Client-supplied cycle_id is ignored. Draft and Archived cycles
+    # never receive new submissions.
+
+    live_cycle = get_live_cycle(db, institution_id)
+    if live_cycle is None or live_cycle.institution_id != institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=NO_LIVE_CYCLE_MESSAGE,
+        )
+    assigned_cycle_id = live_cycle.id
+
+    from app.services.framework_service import (
+        resolve_submission_metric_for_cycle,
+    )
+
+    assigned_metric_id, resolved_code = resolve_submission_metric_for_cycle(
+        db,
+        live_cycle,
+        getattr(sub_data, "metric_id", None),
+        sub_data.metric_code,
+    )
+    if resolved_code is not None:
+        sub_data.metric_code = resolved_code
+
+    from app.services.official_form_service import apply_official_form_payload
+
+    data_json = apply_official_form_payload(
+        db,
+        assigned_metric_id,
+        data_json,
+    )
 
     submission = Submission(
         institution_id=institution_id,
-        cycle_id=sub_data.cycle_id,
+        cycle_id=assigned_cycle_id,
         criterion_id=sub_data.criterion_id,
         department_id=department_id,
         user_id=current_user.id,
         title=sub_data.title,
         metric_code=sub_data.metric_code,
+        metric_id=assigned_metric_id,
         status="Draft",
         data_json=data_json,
     )
@@ -823,6 +953,8 @@ def get_approver_queue(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only Data Approvers can access the approver queue"
         )
+
+    require_user_institution(current_user, db)
 
     query = (
         db.query(Submission)
@@ -871,6 +1003,8 @@ def get_final_approver_queue(
             detail="Only Principal / Director can access the final approval queue"
         )
 
+    require_user_institution(current_user, db)
+
     query = (
         db.query(Submission)
         .filter(
@@ -914,7 +1048,8 @@ def get_submission(
 
     verify_institution_access(
         submission,
-        current_user
+        current_user,
+        db,
     )
 
     role_name = get_user_role(
@@ -970,16 +1105,21 @@ def get_submission(
         return submission
 
     # --------------------------------------------------------
-    # Data Entry
+    # Submission viewers
     # --------------------------------------------------------
 
-    if role_name in DATA_ENTRY_ROLES:
+    if role_name in SUBMISSION_VIEW_ROLES:
 
         require_rbac_permission(
             current_user,
             db,
             "FORMS_DATA",
             "View"
+        )
+
+        require_committee_department_assignment(
+            current_user,
+            role_name,
         )
 
         verify_department_access(
@@ -1068,7 +1208,8 @@ def update_submission(
 
     verify_institution_access(
         submission,
-        current_user
+        current_user,
+        db,
     )
 
     verify_department_access(
@@ -1182,6 +1323,14 @@ def update_submission(
                 value
             )
 
+        from app.services.official_form_service import apply_official_form_payload
+
+        update_dict["data_json"] = apply_official_form_payload(
+            db,
+            submission.metric_id,
+            update_dict["data_json"],
+        )
+
     for key, value in update_dict.items():
 
         setattr(
@@ -1248,7 +1397,8 @@ def submit_submission(
 
     verify_institution_access(
         submission,
-        current_user
+        current_user,
+        db,
     )
 
     verify_department_access(
@@ -1267,11 +1417,18 @@ def submit_submission(
             )
         )
 
-    if submission.status not in {
-        "Draft",
-        "Resubmitted",
-        "Changes Requested",
-    }:
+    if submission.status == "Changes Requested":
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Submission cannot be submitted "
+                "from status 'Changes Requested'. "
+                "Use the resubmit flow instead."
+            )
+        )
+
+    if submission.status != "Draft":
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1281,8 +1438,31 @@ def submit_submission(
             )
         )
 
+    old_status = submission.status
     submission.status = "Submitted"
     submission.updated_at = datetime.utcnow()
+
+    record_audit(
+        db,
+        user=current_user,
+        action="SUBMISSION_STATUS_CHANGE",
+        entity_type="Submission",
+        entity_id=submission.id,
+        old_values={"status": old_status},
+        new_values={
+            "status": submission.status,
+            "title": submission.title,
+        },
+        institution_id=submission.institution_id,
+    )
+
+    notify_roles_for_submission(
+        db,
+        submission,
+        [REVIEWER_ROLE, NAAC_COORDINATOR_ROLE],
+        "New Submission Awaiting Review",
+        f"Submission '{submission.title}' has been submitted for review.",
+    )
 
     try:
 
@@ -1321,7 +1501,8 @@ def start_review(
 
     verify_institution_access(
         submission,
-        current_user
+        current_user,
+        db,
     )
 
     require_reviewer_permission(
@@ -1344,10 +1525,25 @@ def start_review(
             )
         )
 
+    old_status = submission.status
     submission.status = "Under Review"
     submission.reviewed_by = current_user.id
     submission.reviewed_at = datetime.utcnow()
     submission.updated_at = datetime.utcnow()
+
+    record_audit(
+        db,
+        user=current_user,
+        action="SUBMISSION_STATUS_CHANGE",
+        entity_type="Submission",
+        entity_id=submission.id,
+        old_values={"status": old_status},
+        new_values={
+            "status": submission.status,
+            "title": submission.title,
+        },
+        institution_id=submission.institution_id,
+    )
 
     try:
 
@@ -1387,7 +1583,8 @@ def review_submission(
 
     verify_institution_access(
         submission,
-        current_user
+        current_user,
+        db,
     )
 
     require_reviewer_permission(
@@ -1413,18 +1610,13 @@ def review_submission(
 
     max_score = None
 
-    if submission.metric_code:
+    from app.services.operational_metric_service import (
+        resolve_metric_for_submission,
+    )
 
-        metric = (
-            db.query(Metric)
-            .filter(
-                Metric.code == submission.metric_code
-            )
-            .first()
-        )
-
-        if metric:
-            max_score = metric.max_score
+    metric = resolve_metric_for_submission(db, submission)
+    if metric:
+        max_score = metric.max_score
 
     # ========================================================
     # VALIDATE REVIEWER SCORE
@@ -1502,14 +1694,10 @@ def get_review_history(
     db: Session = Depends(get_db)
 ):
 
-    submission = get_submission_or_404(
+    submission = get_submission(
         sub_id,
-        db
-    )
-
-    verify_institution_access(
-        submission,
-        current_user
+        current_user,
+        db,
     )
 
     reviews = (
@@ -1563,7 +1751,8 @@ def resubmit_submission(
 
     verify_institution_access(
         submission,
-        current_user
+        current_user,
+        db,
     )
 
     verify_department_access(
@@ -1592,8 +1781,31 @@ def resubmit_submission(
             )
         )
 
+    old_status = submission.status
     submission.status = "Resubmitted"
     submission.updated_at = datetime.utcnow()
+
+    record_audit(
+        db,
+        user=current_user,
+        action="SUBMISSION_STATUS_CHANGE",
+        entity_type="Submission",
+        entity_id=submission.id,
+        old_values={"status": old_status},
+        new_values={
+            "status": submission.status,
+            "title": submission.title,
+        },
+        institution_id=submission.institution_id,
+    )
+
+    notify_roles_for_submission(
+        db,
+        submission,
+        [REVIEWER_ROLE],
+        "Submission Resubmitted",
+        f"Submission '{submission.title}' was resubmitted and is ready for review.",
+    )
 
     try:
 
@@ -1650,7 +1862,8 @@ def data_approve_submission(
 
     verify_institution_access(
         submission,
-        current_user
+        current_user,
+        db,
     )
 
     if submission.status != "Approved":
@@ -1673,9 +1886,47 @@ def data_approve_submission(
             )
         )
 
+    old_approved_by = submission.approved_by
     submission.approved_by = current_user.id
     submission.approved_at = datetime.utcnow()
     submission.updated_at = datetime.utcnow()
+
+    record_audit(
+        db,
+        user=current_user,
+        action="SUBMISSION_DATA_APPROVE",
+        entity_type="Submission",
+        entity_id=submission.id,
+        old_values={
+            "approved_by": old_approved_by,
+            "status": submission.status,
+        },
+        new_values={
+            "approved_by": submission.approved_by,
+            "status": submission.status,
+            "title": submission.title,
+        },
+        institution_id=submission.institution_id,
+    )
+
+    send_notification(
+        db=db,
+        user_id=submission.user_id,
+        title="Data Approval Completed",
+        message=(
+            f"Your submission '{submission.title}' "
+            "was approved by the Data Approver."
+        ),
+        notif_type="success",
+    )
+
+    notify_roles_for_submission(
+        db,
+        submission,
+        [FINAL_APPROVER_ROLE],
+        "Submission Ready for Final Approval",
+        f"Submission '{submission.title}' is ready for Principal / Director approval.",
+    )
 
     try:
 
@@ -1736,7 +1987,8 @@ def data_reject_submission(
 
     verify_institution_access(
         submission,
-        current_user
+        current_user,
+        db,
     )
 
     if submission.status != "Approved":
@@ -1749,6 +2001,7 @@ def data_reject_submission(
             )
         )
 
+    old_status = submission.status
     submission.status = "Rejected"
 
     submission.rejection_reason = (
@@ -1756,6 +2009,31 @@ def data_reject_submission(
     )
 
     submission.updated_at = datetime.utcnow()
+
+    record_audit(
+        db,
+        user=current_user,
+        action="SUBMISSION_STATUS_CHANGE",
+        entity_type="Submission",
+        entity_id=submission.id,
+        old_values={"status": old_status},
+        new_values={
+            "status": submission.status,
+            "title": submission.title,
+        },
+        institution_id=submission.institution_id,
+    )
+
+    send_notification(
+        db=db,
+        user_id=submission.user_id,
+        title="Submission Rejected",
+        message=(
+            f"Your submission '{submission.title}' "
+            "was rejected by the Data Approver."
+        ),
+        notif_type="error",
+    )
 
     try:
 
@@ -1811,7 +2089,9 @@ def final_approve_submission(
 
     verify_institution_access(
         submission,
-        current_user
+        current_user,
+        db,
+        require_assigned_institution=True,
     )
 
     if submission.approved_by is None:
@@ -1834,11 +2114,37 @@ def final_approve_submission(
             )
         )
 
+    old_status = submission.status
     submission.status = "Final Approval"
 
     submission.final_approved_by = current_user.id
     submission.final_approved_at = datetime.utcnow()
     submission.updated_at = datetime.utcnow()
+
+    record_audit(
+        db,
+        user=current_user,
+        action="SUBMISSION_STATUS_CHANGE",
+        entity_type="Submission",
+        entity_id=submission.id,
+        old_values={"status": old_status},
+        new_values={
+            "status": submission.status,
+            "title": submission.title,
+        },
+        institution_id=submission.institution_id,
+    )
+
+    send_notification(
+        db=db,
+        user_id=submission.user_id,
+        title="Final Approval Granted",
+        message=(
+            f"Your submission '{submission.title}' "
+            "received final approval from the Principal / Director."
+        ),
+        notif_type="success",
+    )
 
     try:
 
@@ -1891,7 +2197,9 @@ def final_reject_submission(
 
     verify_institution_access(
         submission,
-        current_user
+        current_user,
+        db,
+        require_assigned_institution=True,
     )
 
     if submission.approved_by is None:
@@ -1906,11 +2214,37 @@ def final_reject_submission(
             detail="Only approved submissions can be finally rejected"
         )
 
+    old_status = submission.status
     submission.status = "Rejected"
     submission.rejection_reason = rejection_data.reason
     # submission.final_approved_by = current_user.id
     # submission.final_approved_at = datetime.utcnow()
     submission.updated_at = datetime.utcnow()
+
+    record_audit(
+        db,
+        user=current_user,
+        action="SUBMISSION_STATUS_CHANGE",
+        entity_type="Submission",
+        entity_id=submission.id,
+        old_values={"status": old_status},
+        new_values={
+            "status": submission.status,
+            "title": submission.title,
+        },
+        institution_id=submission.institution_id,
+    )
+
+    send_notification(
+        db=db,
+        user_id=submission.user_id,
+        title="Final Approval Rejected",
+        message=(
+            f"Your submission '{submission.title}' "
+            "was rejected by the Principal / Director."
+        ),
+        notif_type="error",
+    )
 
     try:
         db.commit()
@@ -1964,7 +2298,9 @@ def final_submit_submission(
 
     verify_institution_access(
         submission,
-        current_user
+        current_user,
+        db,
+        require_assigned_institution=True,
     )
 
     if submission.final_approved_by is None:
@@ -1987,10 +2323,45 @@ def final_submit_submission(
             )
         )
 
+    old_status = submission.status
     submission.status = "Final Submitted"
 
     submission.final_submitted_at = datetime.utcnow()
     submission.updated_at = datetime.utcnow()
+
+    record_audit(
+        db,
+        user=current_user,
+        action="SUBMISSION_STATUS_CHANGE",
+        entity_type="Submission",
+        entity_id=submission.id,
+        old_values={"status": old_status},
+        new_values={
+            "status": submission.status,
+            "title": submission.title,
+        },
+        institution_id=submission.institution_id,
+    )
+
+    send_notification(
+        db=db,
+        user_id=submission.user_id,
+        title="Final Institutional Submission Completed",
+        message=(
+            f"Your submission '{submission.title}' was marked as the "
+            "institution's final internal record. It has not been sent to NAAC."
+        ),
+        notif_type="success",
+    )
+
+    notify_roles_for_submission(
+        db,
+        submission,
+        [NAAC_COORDINATOR_ROLE],
+        "Final Institutional Submission Completed",
+        f"Submission '{submission.title}' has been finally submitted.",
+        "success",
+    )
 
     try:
 
@@ -2003,7 +2374,7 @@ def final_submit_submission(
         raise
 
     return {
-        "message": "Final NAAC submission completed",
+        "message": "Final institutional submission completed",
         "submission": submission,
     }
 
@@ -2030,7 +2401,8 @@ def reject_submission(
 
     verify_institution_access(
         submission,
-        current_user
+        current_user,
+        db,
     )
 
     require_reviewer_permission(

@@ -8,6 +8,7 @@ import ReviewerView from "./RoleDashboards/ReviewerView";
 import DataApproverView from "./RoleDashboards/DataApproverView";
 import PrincipalDirectorView from "./RoleDashboards/PrincipalDirectorView";
 import AdminView from "./RoleDashboards/AdminView";
+import InstitutionAdminView from "./RoleDashboards/InstitutionAdminView";
 
 function Dashboard() {
   const { activeRole } = useAuth();
@@ -15,6 +16,8 @@ function Dashboard() {
   switch (activeRole) {
     case ROLES.ADMIN:
       return <AdminView />;
+    case ROLES.INSTITUTION_ADMIN:
+      return <InstitutionAdminView />;
     case ROLES.COMMITTEE_MEMBER:
       return <CommitteeMemberView />;
     case ROLES.DEPT_COORDINATOR:
@@ -25,9 +28,15 @@ function Dashboard() {
       return <DataApproverView />;
     case ROLES.PRINCIPAL_DIRECTOR:
       return <PrincipalDirectorView />;
+    case ROLES.NAAC_COORDINATOR:
     case ROLES.COORDINATOR:
-    default:
       return <CoordinatorView />;
+    default:
+      return (
+        <div style={{ padding: "24px", color: "#475569" }}>
+          No role assigned. Contact your administrator if this persists.
+        </div>
+      );
   }
 }
 

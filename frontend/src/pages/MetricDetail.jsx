@@ -2,10 +2,24 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import criteriaService from "../services/criteriaService";
+import accreditationCycleService, {
+  OFFICIAL_WORKING_CATALOGUE_MESSAGE,
+  isOfficialCycleCatalog,
+  pickActiveCycle,
+} from "../services/accreditationCycleService";
+import { useAuth } from "../context/AuthContext";
+import { ROLES, normalizeRole } from "../config/roles";
 
 const MetricDetail = () => {
   const { criterionId, metricId } = useParams();
   const navigate = useNavigate();
+  const { user, activeRole } = useAuth();
+  const normalizedRole = normalizeRole(activeRole || user?.role);
+  const canCreateSubmission = [
+    ROLES.NAAC_COORDINATOR,
+    ROLES.DEPT_COORDINATOR,
+    ROLES.ADMIN,
+  ].includes(normalizedRole);
 
   const [metric, setMetric] = useState(null);
   const [evidenceRequirements, setEvidenceRequirements] = useState([]);
@@ -25,6 +39,14 @@ const MetricDetail = () => {
         // ------------------------------------------------------
         // 1. Get all metrics
         // ------------------------------------------------------
+
+        const cycles =
+          await accreditationCycleService.getCycles();
+        const activeCycle = pickActiveCycle(cycles);
+        if (isOfficialCycleCatalog(activeCycle)) {
+          setError(OFFICIAL_WORKING_CATALOGUE_MESSAGE);
+          return;
+        }
 
         const metrics =
           await criteriaService.getMetrics();
@@ -507,8 +529,10 @@ const MetricDetail = () => {
 
       {/* ======================================================
           START SUBMISSION
+          Data-entry roles only. Committee Members can view.
       ====================================================== */}
 
+      {canCreateSubmission && (
       <div
         className="panel"
         style={{
@@ -575,6 +599,7 @@ const MetricDetail = () => {
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 };

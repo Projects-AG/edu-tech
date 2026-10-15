@@ -1,5 +1,9 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
+# Tests use httpx.AsyncClient + ASGITransport (httpx 0.28.1).
+# Do not add httpx2. Starlette TestClient is unused because Starlette 1.x
+# requires httpx2, which is not a project dependency.
+httpx==0.28.1
 
 # Database
 sqlalchemy==2.0.35

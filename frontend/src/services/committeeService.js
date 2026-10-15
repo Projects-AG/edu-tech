@@ -1,371 +1,158 @@
-const COMMITTEE_KEY = "eduverse_committees";
-const MEMBER_KEY = "eduverse_committee_members";
+import api from "./api";
 
-// ---------------------------------------------------------
-// Default committees
-// ---------------------------------------------------------
+const apiError = (error, fallback) => {
+  const detail = error?.response?.data?.detail;
 
-const defaultCommittees = [
-  {
-    id: 1,
-    name: "NAAC Core Committee",
-    description:
-      "Main committee responsible for coordinating institutional NAAC accreditation activities.",
-    chairperson: "NAAC Coordinator",
-    status: "Active",
-    memberCount: 0,
-    criteriaCount: 0,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    name: "IQAC Committee",
-    description:
-      "Committee responsible for internal quality assurance and accreditation-related coordination.",
-    chairperson: "Institution Admin",
-    status: "Active",
-    memberCount: 0,
-    criteriaCount: 0,
-    createdAt: new Date().toISOString(),
-  },
-];
-
-// ---------------------------------------------------------
-// Temporary user directory
-// Later this will come from your backend users API
-// ---------------------------------------------------------
-
-const defaultUsers = [
-  {
-    id: 101,
-    name: "Dr. Sharma",
-    email: "sharma@eduverse.edu",
-    systemRole: "NAAC Coordinator",
-    department: "Administration",
-  },
-  {
-    id: 102,
-    name: "Prof. A",
-    email: "prof.a@eduverse.edu",
-    systemRole: "Committee Member",
-    department: "Computer Engineering",
-  },
-  {
-    id: 103,
-    name: "Prof. B",
-    email: "prof.b@eduverse.edu",
-    systemRole: "Committee Member",
-    department: "Information Technology",
-  },
-  {
-    id: 104,
-    name: "Prof. C",
-    email: "prof.c@eduverse.edu",
-    systemRole: "Committee Member",
-    department: "Mechanical Engineering",
-  },
-  {
-    id: 105,
-    name: "Prof. D",
-    email: "prof.d@eduverse.edu",
-    systemRole: "Dept. Coordinator",
-    department: "Computer Engineering",
-  },
-  {
-    id: 106,
-    name: "Dr. Priya",
-    email: "priya@eduverse.edu",
-    systemRole: "Committee Member",
-    department: "Electronics Engineering",
-  },
-];
-
-// ---------------------------------------------------------
-// Generic storage helpers
-// ---------------------------------------------------------
-
-const readStorage = (key, fallback = []) => {
-  try {
-    const stored = localStorage.getItem(key);
-
-    if (stored) {
-      return JSON.parse(stored);
-    }
-
-    localStorage.setItem(key, JSON.stringify(fallback));
-
-    return fallback;
-  } catch (error) {
-    console.error(`Error reading ${key}:`, error);
-    return fallback;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => item.msg || item)
+      .join(", ");
   }
+
+  return detail || error?.message || fallback;
 };
 
-const saveStorage = (key, data) => {
-  localStorage.setItem(key, JSON.stringify(data));
-};
+const mapCommittee = (committee) => ({
+  id: committee.id,
+  name: committee.name,
+  description: committee.description,
+  chairperson: committee.chairperson,
+  status: committee.status,
+  memberCount: committee.member_count ?? committee.memberCount ?? 0,
+  criteriaCount: committee.criteria_count ?? committee.criteriaCount ?? 0,
+  createdAt: committee.created_at ?? committee.createdAt,
+  institutionId: committee.institution_id ?? committee.institutionId,
+});
 
-// ---------------------------------------------------------
-// Committee helpers
-// ---------------------------------------------------------
+const mapMember = (member) => ({
+  id: member.id,
+  committeeId: member.committee_id ?? member.committeeId,
+  userId: member.user_id ?? member.userId,
+  name: member.name,
+  email: member.email,
+  systemRole: member.system_role ?? member.systemRole,
+  department: member.department,
+  committeeRole: member.committee_role ?? member.committeeRole,
+  joinedAt: member.created_at ?? member.joinedAt,
+});
 
-const readCommittees = () => {
-  return readStorage(COMMITTEE_KEY, defaultCommittees);
-};
-
-const saveCommittees = (committees) => {
-  saveStorage(COMMITTEE_KEY, committees);
-};
-
-// ---------------------------------------------------------
-// Member helpers
-// ---------------------------------------------------------
-
-const readMembers = () => {
-  return readStorage(MEMBER_KEY, []);
-};
-
-const saveMembers = (members) => {
-  saveStorage(MEMBER_KEY, members);
-};
-
-// ---------------------------------------------------------
-// Committee Service
-// ---------------------------------------------------------
+const mapUser = (user) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  systemRole: user.system_role ?? user.systemRole,
+  department: user.department,
+});
 
 export const committeeService = {
-  // =======================================================
-  // COMMITTEE METHODS
-  // =======================================================
-
   getCommittees: async () => {
-    return readCommittees();
+    try {
+      const response = await api.get("/committees");
+      const data = Array.isArray(response.data) ? response.data : [];
+      return data.map(mapCommittee);
+    } catch (error) {
+      throw new Error(apiError(error, "Unable to load committees."));
+    }
   },
 
   getCommittee: async (id) => {
-    const committees = readCommittees();
-
-    return committees.find(
-      (committee) => String(committee.id) === String(id)
-    );
+    try {
+      const response = await api.get(`/committees/${id}`);
+      return mapCommittee(response.data);
+    } catch (error) {
+      throw new Error(apiError(error, "Unable to load committee."));
+    }
   },
 
   createCommittee: async (data) => {
-    const committees = readCommittees();
-
-    const newCommittee = {
-      id: Date.now(),
-      name: data.name,
-      description: data.description || "",
-      chairperson: data.chairperson || "",
-      status: data.status || "Active",
-      memberCount: 0,
-      criteriaCount: 0,
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedCommittees = [...committees, newCommittee];
-
-    saveCommittees(updatedCommittees);
-
-    return newCommittee;
-  },
-
-  updateCommittee: async (id, data) => {
-    const committees = readCommittees();
-
-    const updatedCommittees = committees.map((committee) => {
-      if (String(committee.id) !== String(id)) {
-        return committee;
-      }
-
-      return {
-        ...committee,
+    try {
+      const response = await api.post("/committees", {
         name: data.name,
         description: data.description || "",
         chairperson: data.chairperson || "",
         status: data.status || "Active",
-      };
-    });
+      });
+      return mapCommittee(response.data);
+    } catch (error) {
+      throw new Error(apiError(error, "Unable to create committee."));
+    }
+  },
 
-    saveCommittees(updatedCommittees);
-
-    return updatedCommittees.find(
-      (committee) => String(committee.id) === String(id)
-    );
+  updateCommittee: async (id, data) => {
+    try {
+      const response = await api.put(`/committees/${id}`, {
+        name: data.name,
+        description: data.description || "",
+        chairperson: data.chairperson || "",
+        status: data.status || "Active",
+      });
+      return mapCommittee(response.data);
+    } catch (error) {
+      throw new Error(apiError(error, "Unable to update committee."));
+    }
   },
 
   deleteCommittee: async (id) => {
-    const committees = readCommittees();
-
-    const updatedCommittees = committees.filter(
-      (committee) => String(committee.id) !== String(id)
-    );
-
-    saveCommittees(updatedCommittees);
-
-    // Remove members belonging to this committee
-    const members = readMembers();
-
-    const updatedMembers = members.filter(
-      (member) => String(member.committeeId) !== String(id)
-    );
-
-    saveMembers(updatedMembers);
-
-    return true;
+    try {
+      await api.delete(`/committees/${id}`);
+      return true;
+    } catch (error) {
+      throw new Error(apiError(error, "Unable to delete committee."));
+    }
   },
-
-  // =======================================================
-  // USER DIRECTORY
-  // =======================================================
 
   getAvailableUsers: async (committeeId) => {
-    const users = defaultUsers;
-    const members = readMembers();
-
-    const committeeMembers = members.filter(
-      (member) => String(member.committeeId) === String(committeeId)
-    );
-
-    const memberUserIds = committeeMembers.map(
-      (member) => String(member.userId)
-    );
-
-    return users.filter(
-      (user) => !memberUserIds.includes(String(user.id))
-    );
+    try {
+      const response = await api.get(
+        `/committees/${committeeId}/available-users`
+      );
+      const data = Array.isArray(response.data) ? response.data : [];
+      return data.map(mapUser);
+    } catch (error) {
+      throw new Error(apiError(error, "Unable to load available users."));
+    }
   },
 
-  // =======================================================
-  // MEMBER METHODS
-  // =======================================================
-
   getMembers: async (committeeId) => {
-    const members = readMembers();
-
-    return members.filter(
-      (member) => String(member.committeeId) === String(committeeId)
-    );
+    try {
+      const response = await api.get(`/committees/${committeeId}/members`);
+      const data = Array.isArray(response.data) ? response.data : [];
+      return data.map(mapMember);
+    } catch (error) {
+      throw new Error(apiError(error, "Unable to load committee members."));
+    }
   },
 
   addMember: async (committeeId, data) => {
-    const members = readMembers();
-
-    const alreadyExists = members.some(
-      (member) =>
-        String(member.committeeId) === String(committeeId) &&
-        String(member.userId) === String(data.userId)
-    );
-
-    if (alreadyExists) {
-      throw new Error("This user is already a member of the committee.");
+    try {
+      const response = await api.post(`/committees/${committeeId}/members`, {
+        user_id: Number(data.userId),
+        committee_role: data.committeeRole || "Member",
+      });
+      return mapMember(response.data);
+    } catch (error) {
+      throw new Error(apiError(error, "Unable to add committee member."));
     }
-
-    const newMember = {
-      id: Date.now(),
-      committeeId: Number(committeeId),
-      userId: Number(data.userId),
-      name: data.name,
-      email: data.email,
-      systemRole: data.systemRole,
-      department: data.department,
-      committeeRole: data.committeeRole || "Member",
-      joinedAt: new Date().toISOString(),
-    };
-
-    const updatedMembers = [...members, newMember];
-
-    saveMembers(updatedMembers);
-
-    // Update committee member count
-    const committees = readCommittees();
-
-    const updatedCommittees = committees.map((committee) => {
-      if (String(committee.id) !== String(committeeId)) {
-        return committee;
-      }
-
-      const count = updatedMembers.filter(
-        (member) =>
-          String(member.committeeId) === String(committeeId)
-      ).length;
-
-      return {
-        ...committee,
-        memberCount: count,
-      };
-    });
-
-    saveCommittees(updatedCommittees);
-
-    return newMember;
   },
 
   removeMember: async (memberId) => {
-    const members = readMembers();
-
-    const memberToRemove = members.find(
-      (member) => String(member.id) === String(memberId)
-    );
-
-    if (!memberToRemove) {
-      return false;
+    try {
+      await api.delete(`/committees/members/${memberId}`);
+      return true;
+    } catch (error) {
+      throw new Error(apiError(error, "Unable to remove committee member."));
     }
-
-    const updatedMembers = members.filter(
-      (member) => String(member.id) !== String(memberId)
-    );
-
-    saveMembers(updatedMembers);
-
-    // Update committee count
-    const committees = readCommittees();
-
-    const updatedCommittees = committees.map((committee) => {
-      if (
-        String(committee.id) !==
-        String(memberToRemove.committeeId)
-      ) {
-        return committee;
-      }
-
-      const count = updatedMembers.filter(
-        (member) =>
-          String(member.committeeId) ===
-          String(memberToRemove.committeeId)
-      ).length;
-
-      return {
-        ...committee,
-        memberCount: count,
-      };
-    });
-
-    saveCommittees(updatedCommittees);
-
-    return true;
   },
 
   updateMemberRole: async (memberId, committeeRole) => {
-    const members = readMembers();
-
-    const updatedMembers = members.map((member) => {
-      if (String(member.id) !== String(memberId)) {
-        return member;
-      }
-
-      return {
-        ...member,
-        committeeRole,
-      };
-    });
-
-    saveMembers(updatedMembers);
-
-    return updatedMembers.find(
-      (member) => String(member.id) === String(memberId)
-    );
+    try {
+      const response = await api.put(`/committees/members/${memberId}`, {
+        committee_role: committeeRole,
+      });
+      return mapMember(response.data);
+    } catch (error) {
+      throw new Error(apiError(error, "Unable to update member role."));
+    }
   },
 };
 

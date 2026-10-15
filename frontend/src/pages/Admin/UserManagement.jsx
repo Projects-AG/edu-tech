@@ -92,7 +92,8 @@ export const UserManagement = () => {
     email: "",
     role_id: "",
     institution_id: "",
-    department_id: "",
+    faculty_id: null,
+    department_id: null,
     is_active: true,
   });
 
@@ -334,6 +335,56 @@ export const UserManagement = () => {
     );
   };
 
+  const getSelectedDepartment = (departmentList, departmentId) => {
+    if (!departmentId) {
+      return null;
+    }
+
+    return (
+      departmentList.find(
+        (department) => String(department.id) === String(departmentId)
+      ) || null
+    );
+  };
+
+  const getFacultyIdFromDepartment = (department) => {
+    if (
+      !department ||
+      department.faculty_id == null ||
+      department.faculty_id === ""
+    ) {
+      return null;
+    }
+
+    const facultyId = Number(department.faculty_id);
+
+    return Number.isFinite(facultyId) ? facultyId : null;
+  };
+
+  const getFacultyLabel = (facultyId) => {
+    if (facultyId == null) {
+      return "";
+    }
+
+    if (String(editingUser?.faculty_id) === String(facultyId)) {
+      return (
+        editingUser.faculty_name ||
+        editingUser.faculty ||
+        `Faculty ID ${facultyId}`
+      );
+    }
+
+    const matchingUser = users.find(
+      (user) => String(user.faculty_id) === String(facultyId)
+    );
+
+    return (
+      matchingUser?.faculty_name ||
+      matchingUser?.faculty ||
+      `Faculty ID ${facultyId}`
+    );
+  };
+
   const openEditUser = async (user) => {
     try {
       setEditingUser(user);
@@ -382,7 +433,8 @@ export const UserManagement = () => {
         email: user.email || "",
         role_id: roleId ? String(roleId) : "",
         institution_id: institutionId ? String(institutionId) : "",
-        department_id: user.department_id ? String(user.department_id) : "",
+        faculty_id: user.faculty_id ?? null,
+        department_id: user.department_id ?? null,
         is_active: user.is_active !== false,
       });
 
@@ -414,31 +466,48 @@ export const UserManagement = () => {
   };
 
   const handleEditUserChange = (field, value) => {
-    setEditUser((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
-
     if (field === "institution_id") {
       setEditUser((previous) => ({
         ...previous,
         institution_id: value,
-        department_id: "",
+        department_id: null,
+        faculty_id: null,
       }));
 
       loadDepartments(value);
-    }
+    } else if (field === "department_id") {
+      const selectedDepartment = departments.find(
+        (department) => Number(department.id) === Number(value)
+      );
 
-    if (field === "role_id") {
+      setEditUser((previous) => ({
+        ...previous,
+        department_id: selectedDepartment ? selectedDepartment.id : null,
+        faculty_id: selectedDepartment
+          ? selectedDepartment.faculty_id ?? null
+          : null,
+      }));
+    } else if (field === "role_id") {
       const roleName = selectedRoleNameForEdit(roles, value);
 
       if (roleName === "Institution Admin") {
         setEditUser((previous) => ({
           ...previous,
           role_id: value,
-          department_id: "",
+          department_id: null,
+          faculty_id: null,
+        }));
+      } else {
+        setEditUser((previous) => ({
+          ...previous,
+          role_id: value,
         }));
       }
+    } else {
+      setEditUser((previous) => ({
+        ...previous,
+        [field]: value,
+      }));
     }
 
     setEditUserError("");
@@ -479,26 +548,58 @@ export const UserManagement = () => {
 
     const selectedRoleName = selectedRole?.name || "";
 
+    const selectedDepartment = departments.find(
+      (department) => Number(department.id) === Number(editUser.department_id)
+    );
+
+    console.log("EDIT USER STATE BEFORE PAYLOAD:", editUser);
+    console.log("SELECTED DEPARTMENT OBJECT:", selectedDepartment);
+
+    if (
+      selectedDepartment?.faculty_id != null &&
+      editUser.faculty_id == null
+    ) {
+      setEditUserError(
+        "The selected department belongs to a faculty, but no faculty was assigned. Please reselect the department."
+      );
+      return;
+    }
+
+    if (editUser.department_id && !editUser.faculty_id) {
+      console.error("BLOCKING UPDATE: faculty_id is missing", {
+        editUser,
+        selectedDepartment,
+      });
+      setEditUserError(
+        "The selected department belongs to a faculty, but no faculty was assigned. Please reselect the department."
+      );
+      return;
+    }
+
     const payload = {
       name: editUser.name.trim(),
       email: editUser.email.trim(),
       role_id: Number(editUser.role_id),
       institution_id: Number(editUser.institution_id),
-      department_id:
-        selectedRoleName === "Institution Admin"
+      faculty_id:
+        editUser.faculty_id == null || editUser.faculty_id === ""
           ? null
-          : editUser.department_id
-          ? Number(editUser.department_id)
-          : null,
+          : Number(editUser.faculty_id),
+      department_id:
+        selectedRoleName === "Institution Admin" ||
+        editUser.department_id == null ||
+        editUser.department_id === ""
+          ? null
+          : Number(editUser.department_id),
       is_active: editUser.is_active,
     };
+
+    console.log("FINAL UPDATE USER PAYLOAD:", payload);
 
     try {
       setEditingUserSaving(true);
       setEditUserError("");
       setEditUserSuccess("");
-
-      console.log("UPDATE USER PAYLOAD:", payload);
 
       await api.put(`/admin/users/${editingUser.id}`, payload);
 
@@ -633,9 +734,9 @@ export const UserManagement = () => {
       return;
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       setCreateUserError(
-        "Password must contain at least 6 characters."
+        "Password must contain at least 8 characters."
       );
       return;
     }
@@ -1042,6 +1143,27 @@ export const UserManagement = () => {
 
     return `${currentRole} authorizes requests assigned to this level.`;
   };
+
+  const derivedEditFacultyId = useMemo(() => {
+    if (
+      selectedRoleNameForEdit(roles, editUser.role_id) ===
+      "Institution Admin"
+    ) {
+      return null;
+    }
+
+    if (editUser.faculty_id === "" || editUser.faculty_id == null) {
+      return null;
+    }
+
+    const facultyId = Number(editUser.faculty_id);
+
+    return Number.isFinite(facultyId) ? facultyId : null;
+  }, [editUser.faculty_id, editUser.role_id, roles]);
+
+  const derivedEditFacultyLabel = useMemo(() => {
+    return getFacultyLabel(derivedEditFacultyId);
+  }, [derivedEditFacultyId, editingUser, users]);
 
   // --------------------------------------------------
   // LOADING
@@ -2311,7 +2433,7 @@ export const UserManagement = () => {
                     </label>
 
                     <select
-                      value={editUser.department_id}
+                      value={editUser.department_id ?? ""}
                       onChange={(e) =>
                         handleEditUserChange(
                           "department_id",
@@ -2346,6 +2468,21 @@ export const UserManagement = () => {
                       </small>
                     )}
                   </div>
+
+                  {derivedEditFacultyId != null && (
+                    <div className="um-form-group">
+                      <label>Faculty</label>
+                      <input
+                        type="text"
+                        value={derivedEditFacultyLabel}
+                        readOnly
+                        disabled
+                      />
+                      <small>
+                        Faculty is taken from the selected department.
+                      </small>
+                    </div>
+                  )}
 
                   <div className="um-checkbox-row">
                     <input

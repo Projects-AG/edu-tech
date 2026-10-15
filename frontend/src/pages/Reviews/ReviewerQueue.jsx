@@ -2,6 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { submissionService } from "../../services/submissionService";
 
+const REVIEWABLE_STATUSES = [
+  "Submitted",
+  "Resubmitted",
+  "Under Review",
+];
+
 const ReviewerQueue = () => {
   const navigate = useNavigate();
 
@@ -49,9 +55,14 @@ const ReviewerQueue = () => {
   // =========================================
   const reviewableSubmissions = useMemo(() => {
     return submissions.filter((submission) => {
+      const isReviewable = REVIEWABLE_STATUSES.includes(
+        submission.status
+      );
+
       const statusMatch =
-        statusFilter === "All" ||
-        submission.status === statusFilter;
+        statusFilter === "All"
+          ? isReviewable
+          : submission.status === statusFilter && isReviewable;
 
       const searchText = search
         .trim()
@@ -265,18 +276,6 @@ const ReviewerQueue = () => {
 
               <option value="Under Review">
                 Under Review
-              </option>
-
-              <option value="Approved">
-                Approved
-              </option>
-
-              <option value="Changes Requested">
-                Changes Requested
-              </option>
-
-              <option value="Rejected">
-                Rejected
               </option>
             </select>
           </div>

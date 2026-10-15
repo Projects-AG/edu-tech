@@ -13,63 +13,6 @@ import {
 } from "../config/roles";
 
 // ============================================================
-// STANDARD NAAC CRITERIA
-// ============================================================
-
-const NAAC_CRITERIA = [
-  {
-    code: "C1",
-    number: "C1",
-    title: "Curricular Aspects",
-  },
-  {
-    code: "C2",
-    number: "C2",
-    title: "Teaching-Learning & Evaluation",
-  },
-  {
-    code: "C3",
-    number: "C3",
-    title: "Research, Innovations & Extension",
-  },
-  {
-    code: "C4",
-    number: "C4",
-    title: "Infrastructure & Learning Resources",
-  },
-  {
-    code: "C5",
-    number: "C5",
-    title: "Student Support & Progression",
-  },
-  {
-    code: "C6",
-    number: "C6",
-    title: "Governance, Leadership & Management",
-  },
-  {
-    code: "C7",
-    number: "C7",
-    title: "Institutional Values & Best Practices",
-  },
-  {
-    code: "C8",
-    number: "C8",
-    title: "Outreach & Community Engagement",
-  },
-  {
-    code: "C9",
-    number: "C9",
-    title: "Health Practices & Sustainability",
-  },
-  {
-    code: "C10",
-    number: "C10",
-    title: "Overall Institutional Performance",
-  },
-];
-
-// ============================================================
 // CRITERIA PAGE
 // ============================================================
 
@@ -117,92 +60,21 @@ const Criteria = () => {
             ? response
             : [];
 
-        console.log(
-          "CRITERIA RESPONSE:",
-          backendCriteria
-        );
+        const formattedCriteria = backendCriteria.map((item) => ({
+          id: item.id,
+          number: item.number || item.code || "-",
+          title: item.title || "Untitled criterion",
+          score: item.weightage ?? 0,
+          maxScore: item.max_score ?? item.maxScore ?? item.weightage ?? 0,
+          status: item.status || "Not Started",
+          weighted: Number(item.completion_percentage ?? 0),
+          totalSubmissions: item.total_submissions ?? 0,
+          approvedSubmissions: item.approved_submissions ?? 0,
+          totalEvidence: item.total_evidence ?? 0,
+          original: item,
+        }));
 
-        // ----------------------------------------------------
-        // Match backend criteria with standard C1-C10 list.
-        // ----------------------------------------------------
-
-        const formattedCriteria =
-          NAAC_CRITERIA.map(
-            (standardCriterion, index) => {
-              const backendCriterion =
-                backendCriteria.find(
-                  (item) => {
-                    const number =
-                      String(
-                        item.number ||
-                          item.code ||
-                          ""
-                      )
-                        .trim()
-                        .toUpperCase();
-
-                    return (
-                      number ===
-                      standardCriterion.code
-                    );
-                  }
-                ) ||
-                backendCriteria.find(
-                  (item) =>
-                    Number(item.id) ===
-                    index + 1
-                );
-
-              const completion =
-                Number(
-                  backendCriterion
-                    ?.completion_percentage ??
-                    backendCriterion
-                      ?.completionPercentage ??
-                    0
-                );
-
-              let status = "Draft";
-
-              if (completion >= 80) {
-                status = "Approved";
-              } else if (completion > 0) {
-                status = "Under Review";
-              }
-
-              return {
-                id:
-                  backendCriterion?.id ??
-                  index + 1,
-
-                number:
-                  standardCriterion.number,
-
-                title:
-                  standardCriterion.title,
-
-                score:
-                  backendCriterion?.weightage ??
-                  100,
-
-                maxScore:
-                  backendCriterion?.max_score ??
-                  backendCriterion?.maxScore ??
-                  100,
-
-                status,
-
-                weighted: completion,
-
-                original:
-                  backendCriterion || null,
-              };
-            }
-          );
-
-        setCriteria(
-          formattedCriteria
-        );
+        setCriteria(formattedCriteria);
       } catch (err) {
         console.error(
           "CRITERIA LOAD ERROR:",
@@ -294,19 +166,19 @@ const Criteria = () => {
 
       render: (value) => {
         const styles = {
-          Approved: {
+          Complete: {
             background: "#dcfce7",
             color: "#166534",
             border: "#bbf7d0",
           },
 
-          "Under Review": {
+          "In Progress": {
             background: "#fef3c7",
             color: "#92400e",
             border: "#fde68a",
           },
 
-          Draft: {
+          "Not Started": {
             background: "#f1f5f9",
             color: "#475569",
             border: "#cbd5e1",
@@ -315,7 +187,7 @@ const Criteria = () => {
 
         const style =
           styles[value] ||
-          styles.Draft;
+          styles["Not Started"];
 
         return (
           <span
@@ -492,6 +364,24 @@ const Criteria = () => {
         title="NAAC Criteria"
         description={description}
       />
+
+      {!loading && criteria[0]?.original?.uses_catalog_fallback ? (
+        <div
+          style={{
+            marginBottom: "18px",
+            padding: "15px 18px",
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: "10px",
+            color: "#92400e",
+            fontSize: "13px",
+          }}
+        >
+          {criteria[0].original.progress_cycle_id
+            ? "Applicability is not configured for the current accreditation cycle. Progress uses the global metric catalog."
+            : "No active accreditation cycle is configured. Progress uses the global metric catalog."}
+        </div>
+      ) : null}
 
       {/* ======================================================
           DEPARTMENT COORDINATOR INFORMATION

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_db, get_current_user, require_permission
 from app.auth.security import hash_password
+from app.services.audit_service import record_audit
 
 from app.auth.registration_authority import (
     get_role_name,
@@ -46,6 +47,7 @@ router = APIRouter(
 # ============================================================
 
 ADMIN_ROLE = "Admin"
+INSTITUTION_ADMIN_ROLE = "Institution Admin"
 NAAC_COORDINATOR_ROLE = "NAAC Coordinator"
 COMMITTEE_MEMBER_ROLE = "Committee Member"
 DEPT_COORDINATOR_ROLE = "Dept. Coordinator"
@@ -57,6 +59,48 @@ PRINCIPAL_DIRECTOR_ROLE = "Principal / Director"
 # ============================================================
 # HELPER FUNCTIONS
 # ============================================================
+
+def is_platform_admin(db: Session, user: User) -> bool:
+    return get_role_name(db, user.role_id) == ADMIN_ROLE
+
+
+def assert_managed_user_scope(
+    db: Session,
+    current_user: User,
+    target_user: User | None = None,
+    institution_id: int | None = None,
+    assigned_role: Role | None = None,
+):
+    if is_platform_admin(db, current_user):
+        return
+
+    current_role = get_role_name(db, current_user.role_id)
+
+    if current_role != INSTITUTION_ADMIN_ROLE:
+        return
+
+    if not current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Institution Admin is not assigned to an institution",
+        )
+
+    scoped_institution_id = institution_id
+    if target_user is not None:
+        scoped_institution_id = target_user.institution_id
+
+    if scoped_institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage users in your institution",
+        )
+
+    if assigned_role and assigned_role.name == ADMIN_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Institution Admin cannot assign the platform Admin role",
+        )
+
 
 def get_role(
     db: Session,
@@ -259,6 +303,11 @@ def admin_dashboard(
     ),
     db: Session = Depends(get_db)
 ):
+    if not is_platform_admin(db, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only platform Admin can access the admin dashboard",
+        )
 
     total_users = (
         db.query(User)
@@ -353,11 +402,17 @@ def get_users(
     db: Session = Depends(get_db)
 ):
 
-    users = (
-        db.query(User)
-        .order_by(User.id)
-        .all()
-    )
+    query = db.query(User)
+
+    if not is_platform_admin(db, current_user):
+        if not current_user.institution_id:
+            return []
+
+        query = query.filter(
+            User.institution_id == current_user.institution_id
+        )
+
+    users = query.order_by(User.id).all()
 
     result = []
 
@@ -504,6 +559,13 @@ def create_user(
             detail="Role not found"
         )
 
+    assert_managed_user_scope(
+        db,
+        current_user,
+        institution_id=user_data.institution_id,
+        assigned_role=role,
+    )
+
     # --------------------------------------------------------
     # Validate hierarchy
     # --------------------------------------------------------
@@ -547,6 +609,22 @@ def create_user(
     db.add(new_user)
 
     try:
+        db.flush()
+        record_audit(
+            db,
+            user=current_user,
+            action="USER_CREATE",
+            entity_type="User",
+            entity_id=new_user.id,
+            new_values={
+                "name": new_user.name,
+                "email": new_user.email,
+                "role_id": new_user.role_id,
+                "institution_id": new_user.institution_id,
+                "is_active": new_user.is_active,
+            },
+            institution_id=new_user.institution_id,
+        )
 
         db.commit()
 
@@ -620,6 +698,12 @@ def get_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
+
+    assert_managed_user_scope(
+        db,
+        current_user,
+        target_user=user,
+    )
 
     role = get_role(
         db,
@@ -715,6 +799,12 @@ def update_user(
             detail="User not found"
         )
 
+    assert_managed_user_scope(
+        db,
+        current_user,
+        target_user=user,
+    )
+
     # --------------------------------------------------------
     # Email
     # --------------------------------------------------------
@@ -779,6 +869,13 @@ def update_user(
 
         user.role_id = user_data.role_id
 
+        assert_managed_user_scope(
+            db,
+            current_user,
+            target_user=user,
+            assigned_role=role,
+        )
+
     # --------------------------------------------------------
     # Institution
     # --------------------------------------------------------
@@ -799,6 +896,12 @@ def update_user(
 
         user.institution_id = (
             user_data.institution_id
+        )
+
+        assert_managed_user_scope(
+            db,
+            current_user,
+            institution_id=user.institution_id,
         )
 
     # --------------------------------------------------------
@@ -867,6 +970,21 @@ def update_user(
         )
 
     try:
+        record_audit(
+            db,
+            user=current_user,
+            action="USER_UPDATE",
+            entity_type="User",
+            entity_id=user.id,
+            new_values={
+                "name": user.name,
+                "email": user.email,
+                "role_id": user.role_id,
+                "institution_id": user.institution_id,
+                "is_active": user.is_active,
+            },
+            institution_id=user.institution_id,
+        )
 
         db.commit()
 
@@ -948,6 +1066,12 @@ def delete_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
+
+    assert_managed_user_scope(
+        db,
+        current_user,
+        target_user=user,
+    )
 
     if user.id == current_user.id:
 
@@ -1099,11 +1223,17 @@ def get_institutions(
     db: Session = Depends(get_db)
 ):
 
-    institutions = (
-        db.query(Institution)
-        .order_by(Institution.id)
-        .all()
-    )
+    query = db.query(Institution)
+
+    if not is_platform_admin(db, current_user):
+        if not current_user.institution_id:
+            return []
+
+        query = query.filter(
+            Institution.id == current_user.institution_id
+        )
+
+    institutions = query.order_by(Institution.id).all()
 
     return [
 
@@ -2205,3 +2335,38 @@ def reject_registration_request(
                 registration_request.reviewed_at,
         }
     }
+
+
+@router.post(
+    "/naac-frameworks/{framework_id}/materialize-operational-metrics"
+)
+def materialize_official_operational_metrics(
+    framework_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not is_platform_admin(db, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only platform Admin can materialize official operational metrics.",
+        )
+
+    from app.services.operational_metric_service import (
+        materialize_framework_operational_metrics,
+    )
+
+    result = materialize_framework_operational_metrics(db, framework_id)
+    record_audit(
+        db,
+        user=current_user,
+        action="MATERIALIZE_OFFICIAL_OPERATIONAL_METRICS",
+        entity_type="NaacFramework",
+        entity_id=framework_id,
+        new_values={
+            "framework_code": result["framework_code"],
+            "operational_metrics_created": result["operational_metrics_created"],
+            "operational_metrics_linked": result["operational_metrics_linked"],
+        },
+    )
+    db.commit()
+    return result

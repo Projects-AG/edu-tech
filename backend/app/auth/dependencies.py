@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -11,6 +13,8 @@ from app.models import (
     RoleModulePermission,
 )
 from app.auth.security import decode_access_token
+
+logger = logging.getLogger("eduverse.auth")
 
 
 # ============================================================
@@ -51,12 +55,6 @@ def get_current_user(
 
     token = credentials.credentials
 
-    print("\n========== AUTH DEBUG ==========")
-    print(
-        "TOKEN RECEIVED:",
-        token[:30] + "..." if token else "NO TOKEN"
-    )
-
     # --------------------------------------------------------
     # Decode JWT
     # --------------------------------------------------------
@@ -64,11 +62,8 @@ def get_current_user(
     try:
         payload = decode_access_token(token)
 
-        print("DECODED PAYLOAD:", payload)
-
-    except Exception as e:
-        print("JWT DECODE ERROR:", repr(e))
-        print("================================\n")
+    except Exception:
+        logger.warning("JWT decode failed")
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -82,12 +77,7 @@ def get_current_user(
 
     user_id = payload.get("user_id")
 
-    print("USER ID FROM TOKEN:", user_id)
-
     if not user_id:
-        print("ERROR: user_id missing from token")
-        print("================================\n")
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
@@ -104,12 +94,7 @@ def get_current_user(
         .first()
     )
 
-    print("USER FOUND:", user)
-
     if not user:
-        print("ERROR: User not found")
-        print("================================\n")
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
@@ -120,25 +105,11 @@ def get_current_user(
     # Check active status
     # --------------------------------------------------------
 
-    print("USER EMAIL:", user.email)
-    print("USER ACTIVE:", user.is_active)
-    print("USER ROLE ID:", user.role_id)
-
     if not user.is_active:
-        print("ERROR: User account is inactive")
-        print("================================\n")
-
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive",
         )
-
-    # --------------------------------------------------------
-    # Authentication successful
-    # --------------------------------------------------------
-
-    print("AUTH SUCCESS:", user.email)
-    print("================================\n")
 
     return user
 

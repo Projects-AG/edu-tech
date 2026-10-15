@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta, timezone
+
 import bcrypt
 from jose import jwt
 
-
-# JWT configuration
-SECRET_KEY = "eduverse-naac-development-secret-key"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 hours for dev/testing ease
+from app.settings import (
+    JWT_ACCESS_EXPIRE_MINUTES,
+    JWT_ALGORITHM,
+    JWT_SECRET,
+)
 
 
 def hash_password(password: str) -> str:
@@ -28,25 +29,23 @@ def create_access_token(data: dict):
     to_encode = data.copy()
 
     expire = datetime.now(timezone.utc) + timedelta(
-        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+        minutes=JWT_ACCESS_EXPIRE_MINUTES
     )
 
     to_encode.update({
         "exp": expire
     })
 
-    encoded_jwt = jwt.encode(
+    return jwt.encode(
         to_encode,
-        SECRET_KEY,
-        algorithm=ALGORITHM
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM
     )
-
-    return encoded_jwt
 
 
 def decode_access_token(token: str):
     return jwt.decode(
         token,
-        SECRET_KEY,
-        algorithms=[ALGORITHM]
+        JWT_SECRET,
+        algorithms=[JWT_ALGORITHM]
     )

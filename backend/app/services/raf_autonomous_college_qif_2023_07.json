@@ -1,0 +1,852 @@
+[
+  {
+    "official_code": "1.1.1",
+    "criterion_number": "C1",
+    "title": "Curricula developed and implemented have relevance to the local, regional, national, and global developmental needs, which is reflected in the Programme outcomes (POs) and Course Outcomes(COs) of the Programmes offered by the institution",
+    "metric_kind": "QlM",
+    "weightage": 20,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "1.1.2",
+    "criterion_number": "C1",
+    "title": "The programmes offered by the institution focus on employability/ entrepreneurship/ skill development and their course syllabi are adequately revised to incorporate contemporary requirements",
+    "metric_kind": "QlM",
+    "weightage": 30,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "1.2.1",
+    "criterion_number": "C1",
+    "title": "Percentage of new courses introduced out of the total number of courses across all programmes offered during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 30,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "1.3.1",
+    "criterion_number": "C1",
+    "title": "Institution integrates cross-cutting issues relevant to Professional Ethics, Gender, Human Values, Environment and Sustainability and other value framework enshrined in Sustainable Development Goals and National Education Policy \u2013 2020 into the Curriculum",
+    "metric_kind": "QlM",
+    "weightage": 15,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "1.3.2",
+    "criterion_number": "C1",
+    "title": "Number of certificate/value added courses/Diploma Programmes offered by the institutions and online courses of MOOCs, SWAYAM/e-PG Pathshala/ NPTEL and other recognized platforms where the students of the institution have enrolled and successfully completed during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 25,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "1.3.3",
+    "criterion_number": "C1",
+    "title": "Percentage of programmes that have components of field projects / research projects / internships during the last five years.",
+    "metric_kind": "QnM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "1.4.1",
+    "criterion_number": "C1",
+    "title": "Structured feedback for curriculum and its transaction is regularly obtained from stakeholders like Students, Teachers, Employers, Alumni, Academic peers etc., and Feedback processes of the institution may be classified as follows:",
+    "metric_kind": "QnM",
+    "weightage": 20,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.1.1",
+    "criterion_number": "C2",
+    "title": "Enrolment percentage",
+    "metric_kind": "QnM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.1.2",
+    "criterion_number": "C2",
+    "title": "Percentage of seats filled against reserved categories (SC, ST, OBC etc.) as per applicable reservation policy for the first year admission during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.2.1",
+    "criterion_number": "C2",
+    "title": "The institution assesses the learning levels of the students and organises special Programmes to cater to differential learning needs of the student",
+    "metric_kind": "QlM",
+    "weightage": 15,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.2.2",
+    "criterion_number": "C2",
+    "title": "Student - Full time teacher ratio (Data for the latest completed academic year)",
+    "metric_kind": "QnM",
+    "weightage": 15,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.3.1",
+    "criterion_number": "C2",
+    "title": "Student centric methods, such as experiential learning, participative learning and problem solving methodologies are used for enhancing learning experience and teachers use ICT- enabled tools including online resources for effective teaching and learning process",
+    "metric_kind": "QlM",
+    "weightage": 30,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.3.2",
+    "criterion_number": "C2",
+    "title": "The institution adopts effective Mentor-Mentee Schemes to address academics and student-psychological issues",
+    "metric_kind": "QlM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.3.3",
+    "criterion_number": "C2",
+    "title": "Preparation and adherence of Academic Calendar and Teaching plans by the institution",
+    "metric_kind": "QlM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.4.1",
+    "criterion_number": "C2",
+    "title": "Average percentage of full time teachers appointed against the number of sanctioned posts year wise during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 15,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.4.2",
+    "criterion_number": "C2",
+    "title": "Percentage of full time teachers with Ph.D./D.Sc. / D.Litt./ L.L.D during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 25,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.4.3",
+    "criterion_number": "C2",
+    "title": "Average teaching experience of full time teachers (Data to be provided only for the latest completed academic year, in number of years)",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.4.4",
+    "criterion_number": "C2",
+    "title": "Percentage of full time teachers working in the institution throughout during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.5.1",
+    "criterion_number": "C2",
+    "title": "Average number of days from the date of last semester-end/ year- end examination till the last date of declaration of results during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 20,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.5.2",
+    "criterion_number": "C2",
+    "title": "Percentage of student complaints/grievances about evaluation against total number appeared in the examinations during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 15,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.5.3",
+    "criterion_number": "C2",
+    "title": "IT integration and reforms in the examination procedures and processes including Continuous Internal Assessment (CIA)/Formative Assessment have brought in considerable improvement in Examination Management System (EMS) of the Institution",
+    "metric_kind": "QlM",
+    "weightage": 15,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.6.1",
+    "criterion_number": "C2",
+    "title": "The institution has stated learning outcomes (programme and course outcome)/graduate attributes which are integrated into the assessment process and widely publicized through the website and other documents and the attainment of the same are evaluated by the institution",
+    "metric_kind": "QlM",
+    "weightage": 30,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.6.2",
+    "criterion_number": "C2",
+    "title": "Pass percentage of students (excluding backlog students) (Data for the latest completed academic year)",
+    "metric_kind": "QnM",
+    "weightage": 20,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "2.7.1",
+    "criterion_number": "C2",
+    "title": "Online student satisfaction survey regarding the teaching learning process.",
+    "metric_kind": "QnM",
+    "weightage": 50,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.1.1",
+    "criterion_number": "C3",
+    "title": "The institution\u2019s research facilities are frequently updated and there are well defined policy for promotion of research which is uploaded on the institutional website and implemented",
+    "metric_kind": "QlM",
+    "weightage": 6,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.1.2",
+    "criterion_number": "C3",
+    "title": "The institution provides seed money to its teachers for research",
+    "metric_kind": "QnM",
+    "weightage": 8,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.1.3",
+    "criterion_number": "C3",
+    "title": "Percentage of teachers receiving national/ international fellowship/financial support by various agencies for advanced studies/ research during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 6,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.2.1",
+    "criterion_number": "C3",
+    "title": "Research funding received by the institution and its faculties through Government and non-government sources such as industry, corporate houses, international bodies for research project, endowment research chairs during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.2.2",
+    "criterion_number": "C3",
+    "title": "Number of research projects per teacher funded by government, non-government , industry, corporate houses, international bodies during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 2,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.2.3",
+    "criterion_number": "C3",
+    "title": "Percentage of teachers recognised as research guides as in the latest completed academic year",
+    "metric_kind": "QnM",
+    "weightage": 3,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.3.1",
+    "criterion_number": "C3",
+    "title": "Institution has created an ecosystem for innovations, Indian Knowledge System (IKS),including awareness about IPR, establishment of IPR cell, Incubation centre and other initiatives for the creation and transfer of knowledge/technology and the outcomes of the same are evident",
+    "metric_kind": "QlM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.4.1",
+    "criterion_number": "C3",
+    "title": "The Institution ensures implementation of its stated Code of Ethics for research",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.4.2",
+    "criterion_number": "C3",
+    "title": "Number of candidates registered for Ph.D per teacher during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.4.3",
+    "criterion_number": "C3",
+    "title": "Number of research papers published per teacher in the Journals as notified on UGC CARE list during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.4.4",
+    "criterion_number": "C3",
+    "title": "Number of books and chapters in edited volumes published per teacher during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.4.5",
+    "criterion_number": "C3",
+    "title": "Bibliometrics of the publications during the last five years based on average Citation index in Scopus/ Web of Science",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.4.6",
+    "criterion_number": "C3",
+    "title": "Bibliometrics of the publications during the last five years based on Scopus/ Web of Science \u2013 h-index of the Institution",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.5.1",
+    "criterion_number": "C3",
+    "title": "Revenue generated from consultancy and corporate training during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.6.1",
+    "criterion_number": "C3",
+    "title": "Outcomes of extension activities in the neighbourhood community in terms of impact and sensitizing the students to social issues and holistic development, and awards received if any during the last five years",
+    "metric_kind": "QlM",
+    "weightage": 30,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.6.2",
+    "criterion_number": "C3",
+    "title": "Number of extension and outreach programs conducted by the institution through organized forums including NSS/NCC with involvement of community year wise during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 20,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "3.7.1",
+    "criterion_number": "C3",
+    "title": "Number of functional MoUs/linkages with institutions/ industries in India and abroad for internship, on-the-job training, project work, student / faculty exchange and collaborative research during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 20,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "4.1.1",
+    "criterion_number": "C4",
+    "title": "The Institution has adequate infrastructure and other facilities",
+    "metric_kind": "QlM",
+    "weightage": 20,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "4.1.2",
+    "criterion_number": "C4",
+    "title": "Percentage of expenditure excluding salary, for infrastructure development and augmentation year wise during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "4.2.1",
+    "criterion_number": "C4",
+    "title": "Library is automated with digital facilities using Integrated Library Management System (ILMS), adequate subscriptions to e-resources and journals are made. The library is optimally used by the faculty and students",
+    "metric_kind": "QlM",
+    "weightage": 15,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "4.2.2",
+    "criterion_number": "C4",
+    "title": "Percentage of expenditure for purchase of books/ e-books and subscription to journals/e-journals year wise during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "4.3.1",
+    "criterion_number": "C4",
+    "title": "Institution frequently updates its IT facilities and provides sufficient bandwidth for internet connection",
+    "metric_kind": "QlM",
+    "weightage": 12,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "4.3.2",
+    "criterion_number": "C4",
+    "title": "Student - Computer ratio (Data for the latest completed academic year)",
+    "metric_kind": "QnM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "4.3.3",
+    "criterion_number": "C4",
+    "title": "Institution has dedicated audio visual centre, mixing equipment, editing facility, media studio, lecture capturing system(LCS) and related hardware and software for e-content development",
+    "metric_kind": "QlM",
+    "weightage": 8,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "4.4.1",
+    "criterion_number": "C4",
+    "title": "Percentage expenditure incurred on maintenance of physical facilities and academic support facilities excluding salary component, during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "4.4.2",
+    "criterion_number": "C4",
+    "title": "There are established systems and procedures for maintaining and utilizing physical and academic support facilities \u2013 laboratory, library, sports complex, computers, classrooms etc.",
+    "metric_kind": "QlM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "5.1.1",
+    "criterion_number": "C5",
+    "title": "Percentage of students benefited by scholarships and freeships provided by the institution, government and non-government bodies, industries, individuals, philanthropists during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 11,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "5.1.2",
+    "criterion_number": "C5",
+    "title": "Efforts taken by the institution to provide career counselling including e-counselling and guidance for competitive examinations during the last five years",
+    "metric_kind": "QlM",
+    "weightage": 6,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "5.1.3",
+    "criterion_number": "C5",
+    "title": "Following capacity development and skills enhancement activities are organised for improving students\u2019 capability",
+    "metric_kind": "QnM",
+    "weightage": 8,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "5.1.4",
+    "criterion_number": "C5",
+    "title": "The institution adopts the following for redressal of student grievances including sexual harassment and ragging cases",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "5.2.1",
+    "criterion_number": "C5",
+    "title": "Percentage of placement of outgoing students and students progressing to higher education during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 20,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "5.2.2",
+    "criterion_number": "C5",
+    "title": "Percentage of students qualifying in state/ national/ international level examinations out of the graduated students during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "5.3.1",
+    "criterion_number": "C5",
+    "title": "Number of awards/medals for outstanding performance in sports/cultural activities at University / state /national / international Level events during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 15,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "5.3.2",
+    "criterion_number": "C5",
+    "title": "Presence of an active Student Council & representation of students on academic & administrative bodies/committees of the institution",
+    "metric_kind": "QlM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "5.3.3",
+    "criterion_number": "C5",
+    "title": "The institution conducts / organizes following activities:",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "5.4.1",
+    "criterion_number": "C5",
+    "title": "Alumni contribution during the last five years to the institution through registered Alumni association",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "5.4.2",
+    "criterion_number": "C5",
+    "title": "Alumni contributes and engages significantly to the development of institution through academic and other support system",
+    "metric_kind": "QlM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "6.1.1",
+    "criterion_number": "C6",
+    "title": "The institutional governance and leadership are in accordance with",
+    "metric_kind": "QlM",
+    "weightage": 15,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "6.2.1",
+    "criterion_number": "C6",
+    "title": "The institutional perspective plan is effectively deployed and functioning of the institutional bodies are effective and efficient as visible from policies, administrative setup, appointment, service rules, and procedures, etc.",
+    "metric_kind": "QlM",
+    "weightage": 6,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "6.2.2",
+    "criterion_number": "C6",
+    "title": "Institution implements e-governance in its operations",
+    "metric_kind": "QnM",
+    "weightage": 4,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "6.3.1",
+    "criterion_number": "C6",
+    "title": "The institution has performance appraisal system, effective welfare measures for teaching and non-teaching staff and avenues for career development/progression",
+    "metric_kind": "QlM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "6.3.2",
+    "criterion_number": "C6",
+    "title": "Percentage of teachers provided with financial support to attend conferences/workshops and towards membership fee of professional bodies during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 15,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "6.3.3",
+    "criterion_number": "C6",
+    "title": "Percentage of teachers undergoing online/ face-to-face Faculty Development Programmes (FDPs)/ Management Development Programmes (MDPs) during the last five years",
+    "metric_kind": "QnM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "6.4.1",
+    "criterion_number": "C6",
+    "title": "Institutional strategies for mobilisation of funds other than salary and fees and the optimal utilisation of resources",
+    "metric_kind": "QlM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "6.4.2",
+    "criterion_number": "C6",
+    "title": "Funds / Grants received from government bodies, non-government bodies, and philanthropists during the last five years (not covered in Criterion III and V)",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "6.4.3",
+    "criterion_number": "C6",
+    "title": "Institution regularly conducts internal and external financial audits regularly",
+    "metric_kind": "QlM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "6.5.1",
+    "criterion_number": "C6",
+    "title": "Internal Quality Assurance Cell (IQAC)/ Internal Quality Assurance System (IQAS) has contributed significantly for institutionalizing the quality assurance strategies and processes, by constantly reviewing the teaching-learning process, structures & methodologies of operations and learning outcomes, at periodic intervals",
+    "metric_kind": "QlM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "6.5.2",
+    "criterion_number": "C6",
+    "title": "The institution reviews its teaching learning process, structures & methodologies of operations and learning outcomes at periodic intervals through IQAC set up as per norms",
+    "metric_kind": "QlM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "6.5.3",
+    "criterion_number": "C6",
+    "title": "Institution has adopted the following for Quality assurance:",
+    "metric_kind": "QnM",
+    "weightage": 10,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "7.1.1",
+    "criterion_number": "C7",
+    "title": "Institution has initiated the Gender Audit and measures for the promotion of gender equity during the last five years.",
+    "metric_kind": "QlM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "7.1.2",
+    "criterion_number": "C7",
+    "title": "The Institution has facilities for alternate sources of energy and energy conservation measures 1. Solar energy 2. Biogas plant 3. Wheeling to the Grid 4. Sensor-based energy conservation 5. Use of LED bulbs/ power efficient equipment 6. Wind mill or any other clean green energy Options: A. Any 4 or more of the above B. Any 3 of the above C. Any 2 of the above D. Any 1of the above E. None of the above",
+    "metric_kind": "QnM",
+    "weightage": 6,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "7.1.3",
+    "criterion_number": "C7",
+    "title": "Describe the facilities in the Institution for the management of the following types of degradable and non-degradable waste (within 500 words)",
+    "metric_kind": "QlM",
+    "weightage": 6,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "7.1.4",
+    "criterion_number": "C7",
+    "title": "Water conservation facilities available in the Institution:",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "7.1.5",
+    "criterion_number": "C7",
+    "title": "Green campus initiatives include",
+    "metric_kind": "QlM",
+    "weightage": 4,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "7.1.6",
+    "criterion_number": "C7",
+    "title": "Quality audits on environment and energy are regularly undertaken by the institution",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "7.1.7",
+    "criterion_number": "C7",
+    "title": "The Institution has Differently-abled (Divyangjan) friendly, barrier free environment",
+    "metric_kind": "QlM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "7.1.8",
+    "criterion_number": "C7",
+    "title": "Describe the Institutional efforts/initiatives in providing an inclusive environment i.e., tolerance and harmony towards cultural, regional, linguistic, communal socioeconomic and such other diversities (within 500 words).",
+    "metric_kind": "QlM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "7.1.9",
+    "criterion_number": "C7",
+    "title": "Sensitization of students and employees of the Institution to the constitutional obligations: values, rights, duties and responsibilities of citizens",
+    "metric_kind": "QlM",
+    "weightage": 4,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "7.1.10",
+    "criterion_number": "C7",
+    "title": "The Institution has a prescribed code of conduct for students, teachers, administrators and other staff and conducts periodic programmes in this regard.",
+    "metric_kind": "QnM",
+    "weightage": 5,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "7.2.1",
+    "criterion_number": "C7",
+    "title": "Describe two best practices successfully implemented by the Institution as per NAAC format provided in the Manual.",
+    "metric_kind": "QlM",
+    "weightage": 30,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  },
+  {
+    "official_code": "7.3.1",
+    "criterion_number": "C7",
+    "title": "Portray the performance of the Institution in one area distinctive to its priority and thrust within 1000 words",
+    "metric_kind": "QlM",
+    "weightage": 20,
+    "required_default": false,
+    "verification_status": "VERIFIED",
+    "required_status": "REQUIRES_OFFICIAL_VERIFICATION"
+  }
+]

@@ -9,7 +9,9 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-import documentService from "../services/documentService";
+import documentService, {
+  resolveDownloadFilename,
+} from "../services/documentService";
 import DataTable from "../components/common/DataTable";
 import PageHeader from "../components/common/PageHeader";
 
@@ -291,18 +293,14 @@ export const Documents = () => {
   // DOWNLOAD DOCUMENT
   // ============================================================
 
-  const handleDownload = async (
-    documentId,
-    title,
-    fileType
-  ) => {
+  const handleDownload = async (row) => {
     try {
       setError("");
       setSuccessMessage("");
 
       const response =
         await documentService.downloadDocument(
-          documentId
+          row.id
         );
 
       const blob = response.data;
@@ -315,22 +313,7 @@ export const Documents = () => {
 
       link.href = url;
 
-      // Try to preserve the original file name
-      let fileName =
-        title || "evidence-document";
-
-      if (
-        fileType &&
-        !fileName
-          .toLowerCase()
-          .endsWith(
-            `.${fileType.toLowerCase()}`
-          )
-      ) {
-        fileName += `.${fileType.toLowerCase()}`;
-      }
-
-      link.download = fileName;
+      link.download = resolveDownloadFilename(row);
 
       document.body.appendChild(link);
 
@@ -745,11 +728,7 @@ export const Documents = () => {
             <button
               type="button"
               onClick={() =>
-                handleDownload(
-                  row.id,
-                  row.title,
-                  getFileType(row)
-                )
+                handleDownload(row)
               }
               disabled={
                 replacingId !==

@@ -49,6 +49,11 @@ export const submissionService = {
     }
   },
 
+  getReviews: async (id) => {
+    const response = await api.get(`/submissions/${id}/reviews`);
+    return response.data;
+  },
+
   // =========================
   // CREATE SUBMISSION
   // =========================
@@ -234,7 +239,7 @@ export const submissionService = {
   // =========================
   // DATA APPROVER
   // APPROVE SUBMISSION
-  // APPROVED → DATA APPROVED
+  // Status stays "Approved"; approved_by is recorded.
   // =========================
   approveSubmission: async (id, data = {}) => {
     try {

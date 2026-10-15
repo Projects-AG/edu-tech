@@ -3,14 +3,15 @@ import os
 
 from dotenv import load_dotenv
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import create_engine, pool
+from sqlalchemy.engine import Connection
 
 from alembic import context
 
 from app.db.database import Base
 
-# Import all models so Alembic can detect them
+# Import ALL live models so Alembic target_metadata is complete.
+# Do NOT import app.models.models (dead UUID/Enum stack).
 from app.models import (
     User,
     Role,
@@ -20,41 +21,80 @@ from app.models import (
     Institution,
     AccreditationCycle,
     Department,
+    Faculty,
     Criterion,
+    Section,
+    Metric,
+    EvidenceRequirement,
+    CycleApplicableMetric,
+    NaacFramework,
+    FrameworkCriterion,
+    FrameworkMetric,
     Submission,
     Document,
     DocumentVersion,
     Review,
     Notification,
     RegistrationRequest,
+    InstitutionRequest,
+    Committee,
+    CommitteeMember,
+    AuditLog,
 )
 
-# Load .env
 load_dotenv()
 
-# Alembic Config object
 config = context.config
 
-# Logging configuration
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# SQLAlchemy metadata
 target_metadata = Base.metadata
 
 
-# --------------------------------------------------
-# OFFLINE MIGRATIONS
-# --------------------------------------------------
-
-def run_migrations_offline() -> None:
-
+def get_alembic_database_url() -> str:
     database_url = os.getenv("DATABASE_URL")
 
     if not database_url:
         raise RuntimeError(
-            "DATABASE_URL not found in .env file"
+            "DATABASE_URL is not set. Alembic will not fall back to SQLite."
         )
+
+    if "postgresql" not in database_url:
+        raise RuntimeError(
+            "Alembic migrations must use PostgreSQL. "
+            f"Refusing non-PostgreSQL DATABASE_URL dialect."
+        )
+
+    return database_url
+
+
+def require_postgresql_connection(database_url: str) -> Connection:
+    engine = create_engine(
+        database_url,
+        poolclass=pool.NullPool,
+    )
+
+    try:
+        connection = engine.connect()
+    except Exception as exc:
+        raise RuntimeError(
+            "Alembic could not connect to PostgreSQL. "
+            "Refusing to fall back to SQLite."
+        ) from exc
+
+    if connection.dialect.name != "postgresql":
+        connection.close()
+        raise RuntimeError(
+            "Alembic connected to a non-PostgreSQL database. "
+            "Refusing to continue."
+        )
+
+    return connection
+
+
+def run_migrations_offline() -> None:
+    database_url = get_alembic_database_url()
 
     context.configure(
         url=database_url,
@@ -69,55 +109,23 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-# --------------------------------------------------
-# ONLINE MIGRATIONS
-# --------------------------------------------------
-
 def run_migrations_online() -> None:
-
-    database_url = os.getenv("DATABASE_URL", "sqlite:///./eduverse_naac.db")
+    database_url = get_alembic_database_url()
+    connection = require_postgresql_connection(database_url)
 
     try:
-        connectable = engine_from_config(
-            {
-                "sqlalchemy.url": database_url
-            },
-            prefix="sqlalchemy.",
-            poolclass=pool.NullPool,
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
         )
-        with connectable.connect() as connection:
-            context.configure(
-                connection=connection,
-                target_metadata=target_metadata,
-            )
-            with context.begin_transaction():
-                context.run_migrations()
-    except Exception:
-        database_url = "sqlite:///./eduverse_naac.db"
-        connectable = engine_from_config(
-            {
-                "sqlalchemy.url": database_url
-            },
-            prefix="sqlalchemy.",
-            poolclass=pool.NullPool,
-        )
-        with connectable.connect() as connection:
-            context.configure(
-                connection=connection,
-                target_metadata=target_metadata,
-            )
-            with context.begin_transaction():
-                context.run_migrations()
 
+        with context.begin_transaction():
+            context.run_migrations()
+    finally:
+        connection.close()
 
-# --------------------------------------------------
-# RUN MIGRATION
-# --------------------------------------------------
 
 if context.is_offline_mode():
-
     run_migrations_offline()
-
 else:
-
     run_migrations_online()

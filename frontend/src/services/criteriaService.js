@@ -44,8 +44,10 @@ const criteriaService = {
   // ==========================================
   // GET ALL METRICS
   // ==========================================
-  getMetrics: async () => {
-    const response = await api.get("/metrics");
+  getMetrics: async (cycleId) => {
+    const response = await api.get("/metrics", {
+      params: cycleId ? { cycle_id: cycleId } : {},
+    });
     return response.data;
   },
 

@@ -36,6 +36,10 @@ def seed_data():
                 "Institution-level approval and monitoring"
             ),
             (
+                "Institution Admin",
+                "Manages users and departments for one institution"
+            ),
+            (
                 "Admin",
                 "System and user administration"
             ),
@@ -195,6 +199,10 @@ def seed_data():
                     )
                 )
 
+        db.commit()
+
+        from app.services.framework_service import ensure_naac_frameworks
+        ensure_naac_frameworks(db)
         db.commit()
 
         print("Seed data inserted successfully!")

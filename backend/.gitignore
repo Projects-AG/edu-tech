@@ -27,10 +27,6 @@ Thumbs.db
 # Storage
 storage/uploads/
 
-# Alembic
-alembic/versions/*.py
-!alembic/versions/.gitkeep
-
 # Testing
 .pytest_cache/
 .coverage

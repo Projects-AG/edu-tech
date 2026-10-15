@@ -3,13 +3,9 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.auth.dependencies import get_db, get_current_user
+from app.auth.registration_authority import ADMIN
 from app.models import Review, Submission, User, Role
-from app.schemas.review import (
-    ReviewResponse,
-    ReviewDecisionRequest
-)
-
-from app.services.review_service import create_review_decision
+from app.schemas.review import ReviewResponse
 
 router = APIRouter(
     prefix="",
@@ -26,14 +22,39 @@ def get_user_role(
     ).first()
 
 
+def require_user_institution(
+    current_user: User,
+    db: Session,
+):
+    role = get_user_role(current_user, db)
+    if role and role.name == ADMIN:
+        return role
+
+    if not current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not assigned to an institution",
+        )
+
+    return role
+
+
 def verify_institution_access(
     current_user: User,
-    submission: Submission
+    submission: Submission,
+    db: Session,
 ):
-    if (
-        current_user.institution_id
-        and submission.institution_id != current_user.institution_id
-    ):
+    role = get_user_role(current_user, db)
+    if role and role.name == ADMIN:
+        return
+
+    if not current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not assigned to an institution",
+        )
+
+    if submission.institution_id != current_user.institution_id:
         raise HTTPException(
             status_code=403,
             detail="Forbidden: Resource belongs to another institution"
@@ -52,6 +73,8 @@ def get_reviews(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    require_user_institution(current_user, db)
+
     query = (
         db.query(Review)
         .join(
@@ -71,71 +94,6 @@ def get_reviews(
 
 
 # ============================================================
-# REVIEWER DECISION
-# ============================================================
-
-@router.post(
-    "/reviews/{submission_id}/decision",
-    response_model=ReviewResponse
-)
-def submit_review_decision(
-    submission_id: int,
-    review_data: ReviewDecisionRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    # --------------------------------------------------------
-    # VERIFY CURRENT USER ROLE
-    # --------------------------------------------------------
-
-    role = get_user_role(current_user, db)
-
-    if not role or role.name != "Reviewer":
-        raise HTTPException(
-            status_code=403,
-            detail="Only Reviewers can submit review decisions"
-        )
-
-    # --------------------------------------------------------
-    # FIND SUBMISSION
-    # --------------------------------------------------------
-
-    submission = (
-        db.query(Submission)
-        .filter(Submission.id == submission_id)
-        .first()
-    )
-
-    if not submission:
-        raise HTTPException(
-            status_code=404,
-            detail="Submission not found"
-        )
-
-    # --------------------------------------------------------
-    # VERIFY INSTITUTION ACCESS
-    # --------------------------------------------------------
-
-    verify_institution_access(
-        current_user=current_user,
-        submission=submission
-    )
-
-    # --------------------------------------------------------
-    # CREATE REVIEW DECISION
-    # --------------------------------------------------------
-
-    return create_review_decision(
-        db=db,
-        submission_id=submission_id,
-        reviewer_user=current_user,
-        review_status=review_data.status,
-        comments=review_data.comments,
-        score=review_data.score,
-        max_score=review_data.max_score,
-    )
-
-# ============================================================
 # DATA APPROVER DASHBOARD
 # ============================================================
 
@@ -152,6 +110,8 @@ def approver_dashboard(
             detail="Only Data Approvers can access this dashboard"
         )
 
+    require_user_institution(current_user, db)
+
     query = db.query(Submission)
 
     if current_user.institution_id:
@@ -160,7 +120,8 @@ def approver_dashboard(
         )
 
     pending_reviews = query.filter(
-        Submission.status == "Approved"
+        Submission.status == "Approved",
+        Submission.approved_by.is_(None),
     ).count()
 
     changes_requested = query.filter(

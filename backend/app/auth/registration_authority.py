@@ -10,6 +10,7 @@ from app.models import User, Role, RegistrationRequest
 # ============================================================
 
 ADMIN = "Admin"
+INSTITUTION_ADMIN = "Institution Admin"
 NAAC_COORDINATOR = "NAAC Coordinator"
 COMMITTEE_MEMBER = "Committee Member"
 DEPT_COORDINATOR = "Dept. Coordinator"
@@ -36,6 +37,9 @@ REGISTRATION_AUTHORITY = {
 
     # IQAC Coordinator
     NAAC_COORDINATOR: PRINCIPAL_DIRECTOR,
+
+     # Institution Admin
+    INSTITUTION_ADMIN: ADMIN,
 
     # Institution Admin
     PRINCIPAL_DIRECTOR: ADMIN,

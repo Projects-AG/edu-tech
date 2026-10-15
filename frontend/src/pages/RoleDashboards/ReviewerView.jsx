@@ -1,44 +1,70 @@
-import React from "react";
-import { CheckSquare, Clock, CheckCircle2, XCircle, FileText } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Clock, CheckCircle2, FileText } from "lucide-react";
+
+import api from "../../services/api";
 import StatCard from "../../components/common/StatCard";
+import {
+  LoadingState,
+  ErrorState,
+} from "../../components/common/FeedbackStates";
 
 export const ReviewerView = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const loadDashboard = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const response = await api.get("/reviewer/dashboard");
+      setData(response.data);
+    } catch (err) {
+      setData(null);
+      setError(
+        err?.response?.data?.detail ||
+          "Unable to load the reviewer dashboard."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  if (loading) {
+    return <LoadingState message="Loading reviewer dashboard..." />;
+  }
+
+  if (error) {
+    return (
+      <ErrorState
+        title="Unable to load dashboard"
+        message={error}
+        onRetry={loadDashboard}
+      />
+    );
+  }
+
+  const stats = data?.statistics || {};
+  const userName = data?.user?.name || "Reviewer";
+
   return (
     <div>
       <section className="welcome-banner">
         <div>
           <div className="welcome-eyebrow">REVIEWER WORKSPACE</div>
-          <h1>Welcome, Peer Reviewer</h1>
-          <p>Review submitted criteria documentation, evaluate compliance, and approve/reject evidence.</p>
+          <h1>Welcome, {userName}</h1>
+          <p>Review submitted criteria documentation and evaluate compliance.</p>
         </div>
       </section>
 
-      <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(5, 1fr)", gap: "12px" }}>
-        <StatCard icon={CheckSquare} label="Assigned Reviews" value="28" color="blue" />
-        <StatCard icon={Clock} label="Pending Reviews" value="9" color="orange" change="Requires Action" />
-        <StatCard icon={FileText} label="Reviewed" value="19" color="purple" />
-        <StatCard icon={CheckCircle2} label="Approved" value="16" color="green" />
-        <StatCard icon={XCircle} label="Rejected" value="3" color="red" />
-      </div>
-
-      <div className="panel" style={{ marginTop: "22px" }}>
-        <div className="panel-header">
-          <div>
-            <h2>Pending Review Queue</h2>
-            <p>Submissions awaiting your evaluation and comments</p>
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <div style={{ padding: "12px", border: "1px solid #e2e8f0", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <strong style={{ fontSize: "13px", color: "#1e293b" }}>AQAR Quantitative Metrics 2.3</strong>
-              <div style={{ fontSize: "11px", color: "#64748b" }}>Department: CSE | Submitted: 2026-03-05</div>
-            </div>
-            <button style={{ padding: "6px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>
-              Evaluate
-            </button>
-          </div>
-        </div>
+      <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
+        <StatCard icon={Clock} label="Pending Reviews" value={stats.pending_reviews ?? 0} color="orange" />
+        <StatCard icon={CheckCircle2} label="Completed Reviews" value={stats.completed_reviews ?? 0} color="green" />
+        <StatCard icon={FileText} label="Evidence Items" value={stats.evidence_items ?? 0} color="purple" />
       </div>
     </div>
   );

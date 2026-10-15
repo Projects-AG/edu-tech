@@ -9,6 +9,11 @@ import {
 } from "react-router-dom";
 
 import criteriaService from "../services/criteriaService";
+import accreditationCycleService, {
+  OFFICIAL_WORKING_CATALOGUE_MESSAGE,
+  isOfficialCycleCatalog,
+  pickActiveCycle,
+} from "../services/accreditationCycleService";
 
 import {
   useAuth,
@@ -18,6 +23,49 @@ import {
   ROLES,
   normalizeRole,
 } from "../config/roles";
+
+const formatApiDetail = (detail) => {
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => item?.msg || item?.message || JSON.stringify(item))
+      .join(", ");
+  }
+
+  if (detail && typeof detail === "object") {
+    return detail.msg || detail.message || JSON.stringify(detail);
+  }
+
+  return detail || "Unable to create section.";
+};
+
+const nextSectionFields = (criterion, currentSections) => {
+  const prefix = String(
+    criterion?.number || criterion?.code || "S"
+  ).replace(/^C/i, "");
+
+  const usedCodes = new Set(
+    (currentSections || []).map((section) => String(section.code || ""))
+  );
+
+  let sequence = (currentSections || []).length + 1;
+  let code = `${prefix}.${sequence}`;
+
+  while (usedCodes.has(code)) {
+    sequence += 1;
+    code = `${prefix}.${sequence}`;
+  }
+
+  const nextOrder =
+    (currentSections || []).reduce((max, section) => {
+      const order = Number(section.display_order);
+      return Number.isFinite(order) ? Math.max(max, order) : max;
+    }, 0) + 1;
+
+  return {
+    code,
+    display_order: nextOrder,
+  };
+};
 
 const CriterionDetail = () => {
   const {
@@ -77,6 +125,11 @@ const CriterionDetail = () => {
   const [
     error,
     setError,
+  ] = useState("");
+
+  const [
+    officialCatalogMessage,
+    setOfficialCatalogMessage,
   ] = useState("");
 
   // ==========================================================
@@ -177,6 +230,18 @@ const CriterionDetail = () => {
           setSections(
             criterionSections
           );
+
+          const cycles =
+            await accreditationCycleService.getCycles();
+          const activeCycle = pickActiveCycle(cycles);
+          if (isOfficialCycleCatalog(activeCycle)) {
+            setOfficialCatalogMessage(
+              OFFICIAL_WORKING_CATALOGUE_MESSAGE
+            );
+            setMetrics([]);
+            return;
+          }
+          setOfficialCatalogMessage("");
 
           // --------------------------------------------------
           // GET METRICS
@@ -412,19 +477,52 @@ const CriterionDetail = () => {
       }
 
       try {
+        const sectionFields =
+          nextSectionFields(
+            criterion,
+            sections
+          );
+
         await criteriaService.createSection(
           {
             criterion_id:
               Number(
                 criterionId
               ),
-
             title:
               title.trim(),
+            code:
+              sectionFields.code,
+            description:
+              null,
+            weightage: 0,
+            display_order:
+              sectionFields.display_order,
           }
         );
 
-        window.location.reload();
+        const sectionResponse =
+          await criteriaService.getSections(
+            Number(criterionId)
+          );
+
+        const loadedSections =
+          Array.isArray(
+            sectionResponse
+          )
+            ? sectionResponse
+            : [];
+
+        setSections(
+          loadedSections.filter(
+            (section) =>
+              String(
+                section.criterion_id ??
+                  section.criterionId
+              ) ===
+              String(criterionId)
+          )
+        );
       } catch (err) {
         console.error(
           "CREATE SECTION ERROR:",
@@ -435,11 +533,12 @@ const CriterionDetail = () => {
         );
 
         alert(
-          err
-            ?.response
-            ?.data
-            ?.detail ||
-            "Unable to create section."
+          formatApiDetail(
+            err
+              ?.response
+              ?.data
+              ?.detail
+          )
         );
       }
     };
@@ -644,6 +743,22 @@ const CriterionDetail = () => {
         </div>
       )}
 
+      {officialCatalogMessage ? (
+        <div
+          style={{
+            marginBottom: "20px",
+            padding: "15px 18px",
+            background: "#fff7ed",
+            border: "1px solid #fdba74",
+            borderRadius: "10px",
+            color: "#9a3412",
+            fontSize: "13px",
+          }}
+        >
+          {officialCatalogMessage}
+        </div>
+      ) : null}
+
       {/* ======================================================
           METRICS
       ====================================================== */}
@@ -749,8 +864,8 @@ const CriterionDetail = () => {
                 "10px",
             }}
           >
-            No metrics found for this
-            criterion.
+            {officialCatalogMessage ||
+              "No metrics found for this criterion."}
           </div>
         )}
 
@@ -898,11 +1013,11 @@ const CriterionDetail = () => {
 
       {/* ======================================================
           SECTIONS
-          ONLY NAAC COORDINATOR / ADMIN
+          Visible to authorized viewers.
+          Create remains coordinator/admin only.
       ====================================================== */}
 
-      {canManageCriteria && (
-        <div
+      <div
           className="panel"
           style={{
             background:
@@ -990,7 +1105,6 @@ const CriterionDetail = () => {
             )
           )}
         </div>
-      )}
     </div>
   );
 };

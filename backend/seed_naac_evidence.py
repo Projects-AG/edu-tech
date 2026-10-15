@@ -1,12 +1,18 @@
 from app.db.database import SessionLocal
 from app.models import EvidenceRequirement, Metric
+from app.models.metric import CATALOG_KIND_WORKING
 
 
 def seed_evidence_requirements():
     db = SessionLocal()
 
     try:
-        metrics = db.query(Metric).order_by(Metric.id).all()
+        metrics = (
+            db.query(Metric)
+            .filter(Metric.catalog_kind == CATALOG_KIND_WORKING)
+            .order_by(Metric.id)
+            .all()
+        )
 
         if not metrics:
             print("No metrics found. Please seed metrics first.")

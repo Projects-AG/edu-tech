@@ -1,8 +1,12 @@
-from pathlib import Path
+import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from app.settings import CORS_ORIGINS
 
 from app.auth.routes import router as auth_router
 from app.institution.routes import router as institution_router
@@ -23,7 +27,10 @@ from app.submission.routes import router as submission_router
 from app.document.routes import router as document_router
 from app.review.routes import router as review_router
 from app.notification.routes import router as notification_router
-from app.committee.routes import router as committee_router
+from app.committee.routes import (
+    router as committee_router,
+    management_router as committee_management_router,
+)
 from app.reviewer.routes import router as reviewer_router
 from app.principal.routes import router as principal_router
 from app.report.routes import router as report_router
@@ -31,7 +38,14 @@ from app.report.routes import router as report_router
 from app.institution_request.routes import (
     router as institution_request_router
 )
+from app.naac_framework.routes import (
+    public_router as naac_framework_public_router,
+    router as naac_framework_router,
+)
+from app.audit.routes import router as audit_router
 
+
+logger = logging.getLogger("eduverse")
 
 app = FastAPI(
     title="EduVerse NAAC API",
@@ -41,37 +55,47 @@ app = FastAPI(
 
 
 # ============================================================
-# STATIC FILES - EVIDENCE UPLOADS
-# ============================================================
-
-UPLOADS_DIR = (
-    Path(__file__).resolve().parent.parent
-    / "uploads"
-)
-
-UPLOADS_DIR.mkdir(
-    parents=True,
-    exist_ok=True
-)
-
-app.mount(
-    "/uploads",
-    StaticFiles(directory=str(UPLOADS_DIR)),
-    name="uploads"
-)
-
-
-# ============================================================
 # CORS CONFIGURATION
 # ============================================================
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(
+    request: Request,
+    exc: Exception,
+):
+    if isinstance(exc, StarletteHTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=exc.headers,
+        )
+
+    if isinstance(exc, RequestValidationError):
+        return JSONResponse(
+            status_code=422,
+            content={"detail": exc.errors()},
+        )
+
+    logger.exception(
+        "Unhandled error on %s %s",
+        request.method,
+        request.url.path,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "An unexpected error occurred."
+        },
+    )
 
 
 # ============================================================
@@ -122,6 +146,7 @@ app.include_router(document_router)
 app.include_router(review_router)
 app.include_router(notification_router)
 app.include_router(committee_router)
+app.include_router(committee_management_router)
 app.include_router(reviewer_router)
 app.include_router(principal_router)
 
@@ -140,3 +165,6 @@ app.include_router(report_router)
 app.include_router(
     institution_request_router
 )
+app.include_router(naac_framework_public_router)
+app.include_router(naac_framework_router)
+app.include_router(audit_router)

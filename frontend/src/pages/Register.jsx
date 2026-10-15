@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
+import frameworkService from "../services/frameworkService";
+import { frameworkReadinessLines } from "../services/frameworkReadiness";
+import {
+  applyInstitutionRequestChange,
+  categorySpecificPayload,
+  validateOfficialCategory,
+} from "../services/institutionRequestProfile";
 import "./Register.css";
 
 function Register() {
@@ -28,12 +35,16 @@ function Register() {
   const [institutions, setInstitutions] = useState([]);
   const [faculties, setFaculties] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [roles, setRoles] = useState([]);
 
   /* =========================================================
      LOADING
   ========================================================= */
 
   const [loadingInstitutions, setLoadingInstitutions] =
+    useState(true);
+
+  const [loadingRoles, setLoadingRoles] =
     useState(true);
 
   const [loadingFaculties, setLoadingFaculties] =
@@ -69,8 +80,24 @@ function Register() {
       state: "",
       pincode: "",
       institution_type: "",
+      official_category: "",
+      affiliation_status: "",
+      affiliated_university: "",
+      autonomous_status: "",
+      is_constituent_unit: false,
+      parent_institution_name: "",
+      programme_level: "",
+      existing_naac_status: "",
+      previous_cycle_number: "",
+      application_pathway: "",
       website: "",
     });
+
+  const [institutionCategories, setInstitutionCategories] =
+    useState([]);
+
+  const [frameworkRecommendation, setFrameworkRecommendation] =
+    useState(null);
 
   const [requestSubmitting, setRequestSubmitting] =
     useState(false);
@@ -80,19 +107,6 @@ function Register() {
 
   const [requestError, setRequestError] =
     useState("");
-
-  /* =========================================================
-     ROLES
-  ========================================================= */
-
-  const roles = [
-    { id: 1, name: "NAAC Coordinator" },
-    { id: 2, name: "Committee Member" },
-    { id: 3, name: "Dept. Coordinator" },
-    { id: 4, name: "Reviewer" },
-    { id: 5, name: "Data Approver" },
-    { id: 6, name: "Principal / Director" },
-  ];
 
   /* =========================================================
      HELPER - EXTRACT API ERROR
@@ -177,6 +191,35 @@ function Register() {
     };
 
     loadInstitutions();
+  }, []);
+
+  useEffect(() => {
+    const loadRoles = async () => {
+      try {
+        setLoadingRoles(true);
+        setError("");
+
+        const response = await api.get("/auth/roles");
+
+        setRoles(
+          Array.isArray(response.data)
+            ? response.data
+            : []
+        );
+      } catch (err) {
+        setRoles([]);
+        setError(
+          getApiErrorMessage(
+            err,
+            "Unable to load registration roles."
+          )
+        );
+      } finally {
+        setLoadingRoles(false);
+      }
+    };
+
+    loadRoles();
   }, []);
 
   /* =========================================================
@@ -585,17 +628,69 @@ function Register() {
     const {
       name,
       value,
+      type,
+      checked,
     } = event.target;
 
     setRequestError("");
 
     setInstitutionRequest(
-      (previous) => ({
-        ...previous,
-        [name]: value,
-      })
+      (previous) =>
+        applyInstitutionRequestChange(
+          previous,
+          name,
+          type === "checkbox" ? checked : value
+        )
     );
   };
+
+  useEffect(() => {
+    frameworkService.getCategories()
+      .then((data) => setInstitutionCategories(data))
+      .catch(() => setInstitutionCategories([]));
+  }, []);
+
+  useEffect(() => {
+    if (!showInstitutionRequest) {
+      return;
+    }
+    if (!institutionRequest.official_category) {
+      setFrameworkRecommendation(null);
+      return;
+    }
+    let cancelled = false;
+    frameworkService.recommend({
+      official_category: institutionRequest.official_category,
+      affiliation_status: institutionRequest.affiliation_status || null,
+      ...categorySpecificPayload(institutionRequest),
+      existing_naac_status: institutionRequest.existing_naac_status || null,
+      previous_cycle_number: institutionRequest.previous_cycle_number || null,
+      application_pathway: institutionRequest.application_pathway || null,
+    }).then((data) => {
+      if (!cancelled) {
+        setFrameworkRecommendation(data);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setFrameworkRecommendation(null);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    showInstitutionRequest,
+    institutionRequest.official_category,
+    institutionRequest.affiliation_status,
+    institutionRequest.affiliated_university,
+    institutionRequest.autonomous_status,
+    institutionRequest.is_constituent_unit,
+    institutionRequest.parent_institution_name,
+    institutionRequest.programme_level,
+    institutionRequest.existing_naac_status,
+    institutionRequest.previous_cycle_number,
+    institutionRequest.application_pathway,
+  ]);
 
   /* =========================================================
      OPEN REQUEST FORM
@@ -666,6 +761,15 @@ function Register() {
         return;
       }
 
+      const categoryError = validateOfficialCategory(
+        institutionRequest.official_category,
+        institutionCategories
+      );
+      if (categoryError) {
+        setRequestError(categoryError);
+        return;
+      }
+
       /* -------------------------------------------------------
          REQUESTER EMAIL
          
@@ -681,13 +785,7 @@ function Register() {
       ------------------------------------------------------- */
 
       const requesterEmail =
-        formData.email.trim()
-          ? formData.email
-              .trim()
-              .toLowerCase()
-          : institutionRequest.official_email
-              .trim()
-              .toLowerCase();
+    institutionRequest.official_email.trim().toLowerCase();
 
       if (!requesterEmail) {
         setRequestError(
@@ -737,6 +835,22 @@ function Register() {
 
           institution_type:
             institutionRequest.institution_type.trim() ||
+            null,
+
+          official_category:
+            institutionRequest.official_category,
+          affiliation_status:
+            institutionRequest.affiliation_status.trim() ||
+            null,
+          ...categorySpecificPayload(institutionRequest),
+          existing_naac_status:
+            institutionRequest.existing_naac_status.trim() ||
+            null,
+          previous_cycle_number:
+            institutionRequest.previous_cycle_number.trim() ||
+            null,
+          application_pathway:
+            institutionRequest.application_pathway.trim() ||
             null,
 
           website:
@@ -1540,11 +1654,13 @@ function Register() {
               name="role_id"
               value={formData.role_id}
               onChange={handleChange}
-              disabled={submitting}
+              disabled={submitting || loadingRoles}
             >
 
               <option value="">
-                Select role
+                {loadingRoles
+                  ? "Loading roles..."
+                  : "Select role"}
               </option>
 
               {roles.map((role) => (
@@ -1927,6 +2043,182 @@ function Register() {
                   </div>
 
                 </div>
+
+                <div className="form-group">
+                  <label>
+                    Official NAAC category *
+                  </label>
+                  <select
+                    name="official_category"
+                    value={institutionRequest.official_category}
+                    onChange={handleInstitutionRequestChange}
+                    disabled={requestSubmitting}
+                    required
+                  >
+                    <option value="">Select the official HEI category</option>
+                    {institutionCategories.map((item) => (
+                      <option key={item.code} value={item.code}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                  <small>
+                    Framework recommendation is based on official NAAC
+                    categories, not a user-selected list of criteria.
+                  </small>
+                </div>
+
+                {institutionRequest.official_category === "AFFILIATED_COLLEGE" ||
+                institutionRequest.official_category === "CONSTITUENT_COLLEGE" ? (
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Affiliating / parent university</label>
+                      <input
+                        type="text"
+                        name={
+                          institutionRequest.official_category ===
+                          "CONSTITUENT_COLLEGE"
+                            ? "parent_institution_name"
+                            : "affiliated_university"
+                        }
+                        value={
+                          institutionRequest.official_category ===
+                          "CONSTITUENT_COLLEGE"
+                            ? institutionRequest.parent_institution_name
+                            : institutionRequest.affiliated_university
+                        }
+                        onChange={handleInstitutionRequestChange}
+                        disabled={requestSubmitting}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Programme level</label>
+                      <select
+                        name="programme_level"
+                        value={institutionRequest.programme_level}
+                        onChange={handleInstitutionRequestChange}
+                        disabled={requestSubmitting}
+                      >
+                        <option value="">Not specified</option>
+                        <option value="UG">Undergraduate</option>
+                        <option value="PG">Postgraduate</option>
+                        <option value="BOTH">UG and PG</option>
+                      </select>
+                    </div>
+                  </div>
+                ) : null}
+
+                {institutionRequest.official_category === "AFFILIATED_COLLEGE" ? (
+                  <div className="form-group">
+                    <label>Autonomous status</label>
+                    <select
+                      name="autonomous_status"
+                      value={institutionRequest.autonomous_status}
+                      onChange={handleInstitutionRequestChange}
+                      disabled={requestSubmitting}
+                    >
+                      <option value="">Not autonomous</option>
+                      <option value="autonomous">Granted autonomy</option>
+                    </select>
+                  </div>
+                ) : null}
+
+                {institutionRequest.official_category === "CONSTITUENT_COLLEGE" ? (
+                  <div className="form-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="is_constituent_unit"
+                        checked={Boolean(institutionRequest.is_constituent_unit)}
+                        onChange={handleInstitutionRequestChange}
+                        disabled={requestSubmitting}
+                      />{" "}
+                      This is a constituent unit of the parent institution
+                    </label>
+                  </div>
+                ) : null}
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Existing NAAC status</label>
+                    <input
+                      type="text"
+                      name="existing_naac_status"
+                      value={institutionRequest.existing_naac_status}
+                      onChange={handleInstitutionRequestChange}
+                      placeholder="e.g. Accredited / first cycle"
+                      disabled={requestSubmitting}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Previous cycle</label>
+                    <input
+                      type="text"
+                      name="previous_cycle_number"
+                      value={institutionRequest.previous_cycle_number}
+                      onChange={handleInstitutionRequestChange}
+                      placeholder="e.g. Cycle 2"
+                      disabled={requestSubmitting}
+                    />
+                  </div>
+                </div>
+
+                {frameworkRecommendation ? (
+                  <div
+                    className="form-group"
+                    style={{
+                      background:
+                        frameworkRecommendation.recommendation_status ===
+                        "VERIFIED"
+                          ? "#f0fdf4"
+                          : "#fffbeb",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      padding: "12px",
+                    }}
+                  >
+                    <strong>
+                      {frameworkRecommendation.recommendation_status ===
+                      "VERIFIED"
+                        ? "Recommended framework family"
+                        : "Pending framework verification"}
+                    </strong>
+                    {frameworkRecommendation.recommended_framework ? (
+                      <p style={{ margin: "8px 0 4px", fontSize: "13px" }}>
+                        {frameworkRecommendation.recommended_framework.name}{" "}
+                        (version {frameworkRecommendation.recommended_framework.version})
+                      </p>
+                    ) : null}
+                    <p style={{ margin: 0, fontSize: "12px", color: "#475569" }}>
+                      {frameworkRecommendation.recommendation_reason}
+                    </p>
+                    {frameworkRecommendation.recommended_framework ? (
+                      <div style={{ margin: "8px 0 0", fontSize: "12px" }}>
+                        {frameworkRecommendation.criterion_structure_verified ? (
+                          <p style={{ margin: 0 }}>
+                            Criterion structure: seven-criteria RAF (from the
+                            published manual).
+                          </p>
+                        ) : null}
+                        {frameworkReadinessLines({
+                          ...frameworkRecommendation.recommended_framework,
+                          metric_rules_verified:
+                            frameworkRecommendation.metric_rules_verified,
+                        }).map((line) => (
+                          <p key={line} style={{ margin: 0 }}>
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
+                    {frameworkRecommendation.recommended_framework?.source_url ? (
+                      <p style={{ margin: "8px 0 0", fontSize: "12px" }}>
+                        Source:{" "}
+                        {frameworkRecommendation.recommended_framework.source_title}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
 
 
                 {/* OFFICIAL EMAIL */}

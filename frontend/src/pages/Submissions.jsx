@@ -1,8 +1,5 @@
-import React, {
-  useState,
-  useEffect,
-} from "react";
-
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Send,
@@ -15,38 +12,35 @@ import {
 import submissionService from "../services/submissionService";
 import DataTable from "../components/common/DataTable";
 import PageHeader from "../components/common/PageHeader";
+import { ROLES } from "../config/roles";
+import { useAuth } from "../context/AuthContext";
 
-import {
-  ROLES,
-  normalizeRole,
-} from "../config/roles";
+const DEPARTMENT_UNASSIGNED_MESSAGE =
+  "Your account is not assigned to a department. Please contact an administrator.";
+
+const isDepartmentUnassignedError = (error) => {
+  const detail = error?.response?.data?.detail;
+
+  return (
+    error?.response?.status === 403 &&
+    String(detail || "").includes("User is not assigned to a department")
+  );
+};
 
 export const Submissions = () => {
-  const [submissions, setSubmissions] =
-    useState([]);
+  const navigate = useNavigate();
+  const { activeRole } = useAuth();
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [actionLoading, setActionLoading] =
-    useState(null);
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionLoading, setActionLoading] = useState(null);
 
   // ==========================================================
   // USER / ROLE
   // ==========================================================
 
-  const storedUser = JSON.parse(
-    localStorage.getItem("user") || "{}"
-  );
-
-  const role = normalizeRole(
-    storedUser?.role
-  );
-
-  console.log(
-    "SUBMISSIONS NORMALIZED ROLE:",
-    role
-  );
+  const role = activeRole;
 
   // ==========================================================
   // ROLE ACCESS
@@ -56,7 +50,6 @@ export const Submissions = () => {
     ROLES.NAAC_COORDINATOR,
     ROLES.DEPT_COORDINATOR,
     ROLES.COMMITTEE_MEMBER,
-    ROLES.REVIEWER,
     ROLES.DATA_APPROVER,
     ROLES.PRINCIPAL_DIRECTOR,
   ];
@@ -71,29 +64,25 @@ export const Submissions = () => {
   const isDataEntryRole = [
     ROLES.NAAC_COORDINATOR,
     ROLES.DEPT_COORDINATOR,
-    ROLES.COMMITTEE_MEMBER,
   ].includes(role);
 
   // ==========================================================
   // REVIEWER
   // ==========================================================
 
-  const isReviewer =
-    role === ROLES.REVIEWER;
+  const isReviewer = role === ROLES.REVIEWER;
 
   // ==========================================================
   // DATA APPROVER
   // ==========================================================
 
-  const isDataApprover =
-    role === ROLES.DATA_APPROVER;
+  const isDataApprover = role === ROLES.DATA_APPROVER;
 
   // ==========================================================
-  // PRINCIPAL
+  // PRINCIPAL / DIRECTOR
   // ==========================================================
 
-  const isPrincipal =
-    role === ROLES.PRINCIPAL_DIRECTOR;
+  const isPrincipal = role === ROLES.PRINCIPAL_DIRECTOR;
 
   // ==========================================================
   // LOAD SUBMISSIONS
@@ -107,67 +96,99 @@ export const Submissions = () => {
 
       setSubmissions([]);
       setLoading(false);
-
       return;
     }
 
     try {
       setLoading(true);
+      setLoadError("");
 
-      const data =
-        await submissionService.getSubmissions();
+      const data = await submissionService.getSubmissions();
 
-      console.log(
-        "SUBMISSIONS DATA:",
-        data
-      );
+      console.log("SUBMISSIONS DATA:", data);
+
+      // ======================================================
+      // APPROVAL DEBUG
+      // ======================================================
 
       if (Array.isArray(data)) {
-        const formatted =
-          data.map((sub) => ({
-            id: sub.id,
-
-            title:
-              sub.title ||
-              "Criteria Submission",
-
-            criterion:
-              sub.criterion ||
-              (sub.metric_code
-                ? `Metric ${sub.metric_code}`
-                : sub.criterion_id
-                ? `Criterion #${sub.criterion_id}`
-                : "Criterion Submission"),
-
-            department:
-              sub.department ||
-              sub.department_name ||
-              (sub.department_id
-                ? `Department #${sub.department_id}`
-                : "Academic Department"),
-
-            submittedBy:
-              sub.submittedBy ||
-              sub.user_name ||
-              (sub.user_id
-                ? `User #${sub.user_id}`
-                : "Unknown User"),
-
-            date:
-              sub.date ||
-              (sub.created_at
-                ? sub.created_at.split("T")[0]
-                : "-"),
-
-            status:
-              String(
-                sub.status || "Draft"
-              )
+        const approvalDebug = data
+          .filter(
+            (sub) =>
+              String(sub.status || "")
                 .trim()
-                .replace(/\s+/g, " "),
-
-            original: sub,
+                .toLowerCase() === "approved"
+          )
+          .map((sub) => ({
+            id: sub.id,
+            status: sub.status,
+            approved_by: sub.approved_by,
+            approved_by_type: typeof sub.approved_by,
           }));
+
+        console.log(
+          "APPROVAL DEBUG:",
+          approvalDebug
+        );
+      }
+
+      if (Array.isArray(data)) {
+        const formatted = data.map((sub) => ({
+          id: sub.id,
+
+          title:
+            sub.title ||
+            "Criteria Submission",
+
+          criterion:
+            sub.criterion ||
+            (sub.metric_code
+              ? `Metric ${sub.metric_code}`
+              : sub.criterion_id
+              ? `Criterion #${sub.criterion_id}`
+              : "Criterion Submission"),
+
+          department:
+            sub.department ||
+            sub.department_name ||
+            (sub.department_id
+              ? `Department #${sub.department_id}`
+              : "Academic Department"),
+
+          submittedBy:
+            sub.submittedBy ||
+            sub.user_name ||
+            (sub.user_id
+              ? `User #${sub.user_id}`
+              : "Unknown User"),
+
+          date:
+            sub.date ||
+            (sub.created_at
+              ? sub.created_at.split("T")[0]
+              : "-"),
+
+          cycle:
+            sub.cycle_name ||
+            (sub.cycle_id
+              ? `Cycle #${sub.cycle_id}`
+              : "Not assigned"),
+
+          metric:
+            sub.metric_code ||
+            "-",
+
+          status: String(
+            sub.status || "Draft"
+          )
+            .trim()
+            .replace(/\s+/g, " "),
+
+          // Keep the complete backend object.
+          // This is important because workflow fields such as
+          // approved_by are used by Principal/Director.
+          original: sub,
+        }));
 
         console.log(
           "FORMATTED SUBMISSIONS:",
@@ -179,12 +200,18 @@ export const Submissions = () => {
         setSubmissions([]);
       }
     } catch (error) {
-      console.error(
-        "SUBMISSIONS LOAD ERROR:",
-        error?.response?.data || error
-      );
-
       setSubmissions([]);
+
+      if (isDepartmentUnassignedError(error)) {
+        setLoadError(DEPARTMENT_UNASSIGNED_MESSAGE);
+      } else {
+        console.error(
+          "SUBMISSIONS LOAD ERROR:",
+          error?.response?.data || error
+        );
+
+        setLoadError("");
+      }
     } finally {
       setLoading(false);
     }
@@ -198,59 +225,19 @@ export const Submissions = () => {
   // CREATE SUBMISSION
   // ==========================================================
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!isDataEntryRole) {
       alert(
         "You are not authorized to create submissions."
       );
-
       return;
     }
 
-    try {
-      setActionLoading("create");
+    navigate("/submissions/new");
+  };
 
-      const item = {
-        title: `Draft Criterion Submission ${Date.now()
-          .toString()
-          .slice(-4)}`,
-
-        metric_code: "1.1.1",
-
-        data_json: {
-          test: true,
-        },
-      };
-
-      console.log(
-        "CREATE SUBMISSION PAYLOAD:",
-        item
-      );
-
-      const response =
-        await submissionService.createSubmission(
-          item
-        );
-
-      console.log(
-        "CREATE SUBMISSION RESPONSE:",
-        response
-      );
-
-      await loadSubmissions();
-    } catch (error) {
-      console.error(
-        "CREATE SUBMISSION ERROR:",
-        error?.response?.data || error
-      );
-
-      alert(
-        error?.response?.data?.detail ||
-          "Unable to create submission."
-      );
-    } finally {
-      setActionLoading(null);
-    }
+  const handleView = (id) => {
+    navigate(`/submissions/${id}`);
   };
 
   // ==========================================================
@@ -265,9 +252,7 @@ export const Submissions = () => {
     try {
       setActionLoading(id);
 
-      await submissionService.submitSubmission(
-        id
-      );
+      await submissionService.submitSubmission(id);
 
       await loadSubmissions();
     } catch (error) {
@@ -303,9 +288,7 @@ export const Submissions = () => {
       );
 
       const response =
-        await submissionService.resubmitSubmission(
-          id
-        );
+        await submissionService.resubmitSubmission(id);
 
       console.log(
         "RESUBMIT RESPONSE:",
@@ -340,9 +323,7 @@ export const Submissions = () => {
     try {
       setActionLoading(id);
 
-      await submissionService.startReview(
-        id
-      );
+      await submissionService.startReview(id);
 
       await loadSubmissions();
     } catch (error) {
@@ -372,14 +353,11 @@ export const Submissions = () => {
     try {
       setActionLoading(id);
 
-      await submissionService.reviewSubmission(
-        id,
-        {
-          status: "Approved",
-          comments:
-            "Submission reviewed and approved.",
-        }
-      );
+      await submissionService.reviewSubmission(id, {
+        status: "Approved",
+        comments:
+          "Submission reviewed and approved.",
+      });
 
       await loadSubmissions();
     } catch (error) {
@@ -417,13 +395,10 @@ export const Submissions = () => {
     try {
       setActionLoading(id);
 
-      await submissionService.reviewSubmission(
-        id,
-        {
-          status: "Changes Requested",
-          comments,
-        }
-      );
+      await submissionService.reviewSubmission(id, {
+        status: "Changes Requested",
+        comments,
+      });
 
       await loadSubmissions();
     } catch (error) {
@@ -461,12 +436,9 @@ export const Submissions = () => {
     try {
       setActionLoading(id);
 
-      await submissionService.rejectSubmission(
-        id,
-        {
-          reason,
-        }
-      );
+      await submissionService.rejectSubmission(id, {
+        reason,
+      });
 
       await loadSubmissions();
     } catch (error) {
@@ -496,13 +468,10 @@ export const Submissions = () => {
     try {
       setActionLoading(id);
 
-      await submissionService.approveSubmission(
-        id,
-        {
-          comments:
-            "Data verified and approved.",
-        }
-      );
+      await submissionService.approveSubmission(id, {
+        comments:
+          "Data verified and approved.",
+      });
 
       await loadSubmissions();
     } catch (error) {
@@ -540,13 +509,12 @@ export const Submissions = () => {
     try {
       setActionLoading(id);
 
-      await submissionService
-        .rejectSubmissionByDataApprover(
-          id,
-          {
-            reason,
-          }
-        );
+      await submissionService.rejectSubmissionByDataApprover(
+        id,
+        {
+          reason,
+        }
+      );
 
       await loadSubmissions();
     } catch (error) {
@@ -565,7 +533,7 @@ export const Submissions = () => {
   };
 
   // ==========================================================
-  // PRINCIPAL - FINAL APPROVE
+  // PRINCIPAL / DIRECTOR - FINAL APPROVE
   // ==========================================================
 
   const handleFinalApprove = async (id) => {
@@ -576,12 +544,20 @@ export const Submissions = () => {
     try {
       setActionLoading(id);
 
-      await submissionService.finalApprove(
-        id,
-        {
+      console.log(
+        "FINAL APPROVAL REQUEST:",
+        id
+      );
+
+      const response =
+        await submissionService.finalApprove(id, {
           comments:
             "Final approval granted by Principal / Director.",
-        }
+        });
+
+      console.log(
+        "FINAL APPROVAL RESPONSE:",
+        response
       );
 
       await loadSubmissions();
@@ -601,7 +577,7 @@ export const Submissions = () => {
   };
 
   // ==========================================================
-  // PRINCIPAL - FINAL SUBMIT
+  // PRINCIPAL / DIRECTOR - FINAL SUBMIT
   // ==========================================================
 
   const handleFinalSubmit = async (id) => {
@@ -613,14 +589,12 @@ export const Submissions = () => {
       setActionLoading(id);
 
       console.log(
-        "FINAL NAAC SUBMISSION:",
+        "FINAL INSTITUTIONAL SUBMISSION:",
         id
       );
 
       const response =
-        await submissionService.finalSubmit(
-          id
-        );
+        await submissionService.finalSubmit(id);
 
       console.log(
         "FINAL SUBMISSION RESPONSE:",
@@ -636,7 +610,7 @@ export const Submissions = () => {
 
       alert(
         error?.response?.data?.detail ||
-          "Unable to submit final NAAC submission."
+          "Unable to complete the final institutional submission."
       );
     } finally {
       setActionLoading(null);
@@ -660,41 +634,55 @@ export const Submissions = () => {
     const isLoading =
       actionLoading === row.id;
 
+    const viewButton = (
+      <button
+        onClick={() => handleView(row.id)}
+        title="View / Open"
+        style={actionButtonStyle}
+      >
+        <Eye size={16} />
+      </button>
+    );
+
     console.log(
       `ROW ${row.id} STATUS:`,
       status,
       "ROLE:",
-      role
+      role,
+      "APPROVED_BY:",
+      row?.original?.approved_by
     );
 
     // ========================================================
-    // DEPARTMENT / DATA ENTRY ROLE
+    // DATA ENTRY ROLE
     // ========================================================
 
     if (isDataEntryRole) {
-
       // ------------------------------------------------------
       // DRAFT → SUBMIT
       // ------------------------------------------------------
 
       if (normalizedStatus === "draft") {
         return (
-          <button
-            onClick={() =>
-              handleSubmit(row.id)
-            }
-            disabled={isLoading}
-            title="Submit"
-            style={{
-              ...actionButtonStyle,
-              opacity: isLoading ? 0.6 : 1,
-              cursor: isLoading
-                ? "not-allowed"
-                : "pointer",
-            }}
-          >
-            <Send size={16} />
-          </button>
+          <div style={{ display: "flex", gap: "6px" }}>
+            {viewButton}
+            <button
+              onClick={() =>
+                handleSubmit(row.id)
+              }
+              disabled={isLoading}
+              title="Submit"
+              style={{
+                ...actionButtonStyle,
+                opacity: isLoading ? 0.6 : 1,
+                cursor: isLoading
+                  ? "not-allowed"
+                  : "pointer",
+              }}
+            >
+              <Send size={16} />
+            </button>
+          </div>
         );
       }
 
@@ -707,55 +695,47 @@ export const Submissions = () => {
         "changes requested"
       ) {
         return (
-          <button
-            onClick={() =>
-              handleResubmit(row.id)
-            }
-            disabled={isLoading}
-            title="Resubmit after making requested changes"
-            style={{
-              ...actionButtonStyle,
-              opacity: isLoading ? 0.6 : 1,
-              cursor: isLoading
-                ? "not-allowed"
-                : "pointer",
-            }}
-          >
-            <RotateCcw size={16} />
-          </button>
+          <div style={{ display: "flex", gap: "6px" }}>
+            {viewButton}
+            <button
+              onClick={() =>
+                handleResubmit(row.id)
+              }
+              disabled={isLoading}
+              title="Resubmit after making requested changes"
+              style={{
+                ...actionButtonStyle,
+                opacity: isLoading ? 0.6 : 1,
+                cursor: isLoading
+                  ? "not-allowed"
+                  : "pointer",
+              }}
+            >
+              <RotateCcw size={16} />
+            </button>
+          </div>
         );
       }
 
       // ------------------------------------------------------
-      // ALL OTHER STATUSES → VIEW ONLY
+      // ALL OTHER STATUSES → VIEW
       // ------------------------------------------------------
 
-      return (
-        <button
-          title="View"
-          style={{
-            ...actionButtonStyle,
-            cursor: "default",
-          }}
-        >
-          <Eye size={16} />
-        </button>
-      );
+      return viewButton;
     }
 
     // ========================================================
-    // REVIEWER ONLY
+    // REVIEWER
     // ========================================================
 
     if (isReviewer) {
-
       // ------------------------------------------------------
-      // SUBMITTED → START REVIEW
+      // SUBMITTED / RESUBMITTED → START REVIEW
       // ------------------------------------------------------
 
       if (
-        normalizedStatus ===
-        "submitted"
+        normalizedStatus === "submitted" ||
+        normalizedStatus === "resubmitted"
       ) {
         return (
           <button
@@ -778,7 +758,7 @@ export const Submissions = () => {
       }
 
       // ------------------------------------------------------
-      // UNDER REVIEW → REVIEW ACTIONS
+      // UNDER REVIEW → APPROVE / CHANGES / REJECT
       // ------------------------------------------------------
 
       if (
@@ -858,15 +838,15 @@ export const Submissions = () => {
     }
 
     // ========================================================
-    // DATA APPROVER ONLY
+    // DATA APPROVER
     // ========================================================
 
     if (isDataApprover) {
+      const awaitingDataApproval =
+        normalizedStatus === "approved" &&
+        !row?.original?.approved_by;
 
-      if (
-        normalizedStatus ===
-        "approved"
-      ) {
+      if (awaitingDataApproval) {
         return (
           <div
             style={{
@@ -874,6 +854,7 @@ export const Submissions = () => {
               gap: "6px",
             }}
           >
+            {viewButton}
             <button
               onClick={() =>
                 handleDataApprove(
@@ -881,7 +862,7 @@ export const Submissions = () => {
                 )
               }
               disabled={isLoading}
-              title="Approve"
+              title="Approve Data"
               style={{
                 ...actionButtonStyle,
                 opacity: isLoading
@@ -899,7 +880,7 @@ export const Submissions = () => {
                 )
               }
               disabled={isLoading}
-              title="Reject"
+              title="Reject Data"
               style={{
                 ...actionButtonStyle,
                 opacity: isLoading
@@ -913,32 +894,31 @@ export const Submissions = () => {
         );
       }
 
-      return (
-        <button
-          title="View"
-          style={actionButtonStyle}
-        >
-          <Eye size={16} />
-        </button>
-      );
+      return viewButton;
     }
 
     // ========================================================
-    // PRINCIPAL / DIRECTOR ONLY
+    // PRINCIPAL / DIRECTOR
     // ========================================================
 
     if (isPrincipal) {
-
       // ------------------------------------------------------
-      // DATA APPROVED → FINAL APPROVAL
+      // APPROVED + DATA APPROVER SIGN-OFF
+      // → FINAL APPROVAL
+      //
+      // Backend keeps status as "Approved"
+      // and records approved_by.
       // ------------------------------------------------------
 
-      if (
-        normalizedStatus ===
-        "data approved"
-      ) {
+      const awaitingFinalApproval =
+        normalizedStatus === "approved" &&
+        Boolean(row?.original?.approved_by);
+
+      if (awaitingFinalApproval) {
         return (
-          <button
+          <div style={{ display: "flex", gap: "6px" }}>
+            {viewButton}
+            <button
             onClick={() =>
               handleFinalApprove(
                 row.id
@@ -951,10 +931,14 @@ export const Submissions = () => {
               opacity: isLoading
                 ? 0.6
                 : 1,
+              cursor: isLoading
+                ? "not-allowed"
+                : "pointer",
             }}
           >
             <CheckCircle size={16} />
           </button>
+          </div>
         );
       }
 
@@ -967,48 +951,44 @@ export const Submissions = () => {
         "final approval"
       ) {
         return (
-          <button
+          <div style={{ display: "flex", gap: "6px" }}>
+            {viewButton}
+            <button
             onClick={() =>
               handleFinalSubmit(
                 row.id
               )
             }
             disabled={isLoading}
-            title="Final NAAC Submission"
+            title="Final institutional submission (not sent to NAAC)"
             style={{
               ...actionButtonStyle,
               opacity: isLoading
                 ? 0.6
                 : 1,
+              cursor: isLoading
+                ? "not-allowed"
+                : "pointer",
             }}
           >
             <Send size={16} />
           </button>
+          </div>
         );
       }
 
-      return (
-        <button
-          title="View"
-          style={actionButtonStyle}
-        >
-          <Eye size={16} />
-        </button>
-      );
+      // ------------------------------------------------------
+      // EVERYTHING ELSE → VIEW
+      // ------------------------------------------------------
+
+      return viewButton;
     }
 
     // ========================================================
     // DEFAULT
     // ========================================================
 
-    return (
-      <button
-        title="View"
-        style={actionButtonStyle}
-      >
-        <Eye size={16} />
-      </button>
-    );
+    return viewButton;
   };
 
   // ==========================================================
@@ -1024,6 +1004,16 @@ export const Submissions = () => {
     {
       title: "Criterion",
       dataIndex: "criterion",
+    },
+
+    {
+      title: "Metric",
+      dataIndex: "metric",
+    },
+
+    {
+      title: "Cycle",
+      dataIndex: "cycle",
     },
 
     {
@@ -1050,7 +1040,6 @@ export const Submissions = () => {
     {
       title: "Actions",
       dataIndex: "id",
-
       render: (_, row) =>
         renderActions(row),
     },
@@ -1070,7 +1059,7 @@ export const Submissions = () => {
         <PageHeader
           eyebrow="ACCREDITATION DOSSIER"
           title="Submissions Management"
-          description="Track SSR and AQAR submissions across academic units."
+          description="Track internal SSR / AQAR preparation data across academic units."
         />
 
         <div
@@ -1144,7 +1133,7 @@ export const Submissions = () => {
       <PageHeader
         eyebrow="ACCREDITATION DOSSIER"
         title="Submissions Management"
-        description="Track SSR and AQAR submissions across academic units."
+        description="Track internal SSR / AQAR preparation data across academic units."
         primaryAction={
           isDataEntryRole
             ? {
@@ -1177,6 +1166,16 @@ export const Submissions = () => {
             }}
           >
             Loading submissions...
+          </div>
+        ) : loadError ? (
+          <div
+            style={{
+              padding: "30px",
+              textAlign: "center",
+              color: "#7f1d1d",
+            }}
+          >
+            {loadError}
           </div>
         ) : (
           <DataTable

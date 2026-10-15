@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { submissionService } from "../../services/submissionService";
-import documentService from "../../services/documentService";
+import documentService, {
+  resolveDownloadFilename,
+} from "../../services/documentService";
+import { parseOfficialDataJson } from "../../services/officialMetricForm";
 
 const EvidenceReview = () => {
   const { id } = useParams();
@@ -15,6 +18,7 @@ const EvidenceReview = () => {
   const [documentsLoading, setDocumentsLoading] = useState(true);
 
   const [error, setError] = useState("");
+  const [documentsError, setDocumentsError] = useState("");
   const [actionError, setActionError] = useState("");
 
   const [startingReview, setStartingReview] = useState(false);
@@ -66,22 +70,12 @@ const EvidenceReview = () => {
   const loadDocuments = async () => {
     try {
       setDocumentsLoading(true);
+      setDocumentsError("");
 
       const data =
-        await documentService.getDocuments();
+        await documentService.getDocuments(id);
 
-      const allDocuments = Array.isArray(data)
-        ? data
-        : [];
-
-      const filteredDocuments =
-        allDocuments.filter(
-          (document) =>
-            String(document.submission_id) ===
-            String(id)
-        );
-
-      setDocuments(filteredDocuments);
+      setDocuments(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(
         "Failed to load documents:",
@@ -89,6 +83,10 @@ const EvidenceReview = () => {
       );
 
       setDocuments([]);
+      setDocumentsError(
+        err?.response?.data?.detail ||
+          "Unable to load supporting evidence."
+      );
     } finally {
       setDocumentsLoading(false);
     }
@@ -291,11 +289,7 @@ const EvidenceReview = () => {
 
       link.href = url;
 
-      link.download =
-        document.original_filename ||
-        document.file_name ||
-        document.filename ||
-        `document-${document.id}`;
+      link.download = resolveDownloadFilename(document);
 
       window.document.body.appendChild(link);
 
@@ -371,6 +365,8 @@ const EvidenceReview = () => {
       return submission.data_json;
     }
   }, [submission]);
+
+  const officialPayload = parseOfficialDataJson(submission?.data_json);
 
   /*
    * ---------------------------------------------------------
@@ -603,6 +599,24 @@ const EvidenceReview = () => {
                 marginBottom: "4px",
               }}
             >
+              Cycle
+            </div>
+
+            <strong>
+              {submission.cycle_id
+                ? `Cycle #${submission.cycle_id}`
+                : "Not assigned"}
+            </strong>
+          </div>
+
+          <div>
+            <div
+              style={{
+                fontSize: "12px",
+                color: "#64748b",
+                marginBottom: "4px",
+              }}
+            >
               Criterion
             </div>
 
@@ -786,7 +800,24 @@ const EvidenceReview = () => {
           Submission Data
         </h2>
 
-        {submissionData ? (
+        {officialPayload ? (
+          <div style={{ fontSize: "14px", color: "#1e293b" }}>
+            <div style={{ color: "#64748b", marginBottom: "8px" }}>
+              Official {officialPayload.metric_kind}
+              {" · operational #"}
+              {officialPayload.metric_id}
+              {" · "}
+              {officialPayload.metric_code}
+            </div>
+            <div style={{ whiteSpace: "pre-wrap" }}>
+              {officialPayload.metric_kind === "QlM"
+                ? officialPayload.qualitative_response ||
+                  "No qualitative response recorded."
+                : officialPayload.quantitative_response ||
+                  "No quantitative response recorded."}
+            </div>
+          </div>
+        ) : submissionData ? (
           <pre
             style={{
               background: "#0f172a",
@@ -865,6 +896,18 @@ const EvidenceReview = () => {
 
         {documentsLoading ? (
           <p>Loading evidence...</p>
+        ) : documentsError ? (
+          <div
+            style={{
+              padding: "25px",
+              textAlign: "center",
+              background: "#fef2f2",
+              borderRadius: "8px",
+              color: "#b91c1c",
+            }}
+          >
+            {documentsError}
+          </div>
         ) : documents.length === 0 ? (
           <div
             style={{

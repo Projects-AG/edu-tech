@@ -10,6 +10,7 @@ export const Sidebar = ({ mobileOpen, setMobileOpen }) => {
   const { user, activeRole, logout } = useAuth();
 
   const navItems = getNavigationForRole(activeRole);
+  const roleLabel = activeRole || "Unassigned";
 
   const handleNavigate = (path) => {
     if (setMobileOpen) setMobileOpen(false);
@@ -34,7 +35,7 @@ export const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
       {/* DYNAMIC NAVIGATION SECTION */}
       <div className="sidebar-section">
-        <div className="sidebar-label">{activeRole.toUpperCase()} PORTAL</div>
+        <div className="sidebar-label">{roleLabel.toUpperCase()} PORTAL</div>
 
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -53,29 +54,15 @@ export const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         })}
       </div>
 
-      {/* ACCREDITATION PREPARATION CYCLE CARD */}
-      <div className="cycle-card">
-        <div className="cycle-top">
-          <span>Cycle 3 Prep</span>
-          <span>78%</span>
-        </div>
-
-        <div className="cycle-progress">
-          <div className="cycle-progress-fill" style={{ width: "78%" }} />
-        </div>
-
-        <p>Accreditation preparation is on track.</p>
-      </div>
-
       {/* USER PROFILE */}
       <div className="sidebar-user">
         <div className="user-avatar">
-          {user?.name?.charAt(0)?.toUpperCase() || activeRole.charAt(0).toUpperCase()}
+          {user?.name?.charAt(0)?.toUpperCase() || roleLabel.charAt(0).toUpperCase()}
         </div>
 
         <div className="user-info">
-          <strong>{user?.name || activeRole}</strong>
-          <span>{activeRole}</span>
+          <strong>{user?.name || roleLabel}</strong>
+          <span>{roleLabel}</span>
         </div>
 
         <button className="logout-icon" onClick={handleLogout} title="Logout">

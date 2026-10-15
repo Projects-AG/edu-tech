@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_db, get_current_user
+from app.auth.registration_authority import REVIEWER, get_role_name
 from app.models import User, Submission, Document, Review
+from app.services.report_service import REVIEWABLE_STATUSES
 
 router = APIRouter(
     prefix="/reviewer",
@@ -15,6 +17,18 @@ def reviewer_dashboard(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    if get_role_name(db, current_user.role_id) != REVIEWER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Reviewers can access this dashboard",
+        )
+
+    if not current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not assigned to an institution",
+        )
+
     inst_id = current_user.institution_id
     sub_query = db.query(Submission)
     doc_query = db.query(Document)
@@ -23,9 +37,21 @@ def reviewer_dashboard(
         sub_query = sub_query.filter(Submission.institution_id == inst_id)
         doc_query = doc_query.filter(Document.institution_id == inst_id)
 
-    pending_reviews = sub_query.filter(Submission.status == "Submitted").count()
-    completed_reviews = db.query(Review).filter(Review.reviewer_id == current_user.id).count()
-    evidence_items = doc_query.count()
+    pending_query = sub_query.filter(Submission.status.in_(REVIEWABLE_STATUSES))
+    pending_reviews = pending_query.count()
+    completed_reviews = db.query(Review).filter(
+        Review.reviewer_id == current_user.id
+    ).count()
+
+    pending_submission_ids = [
+        row[0] for row in pending_query.with_entities(Submission.id).all()
+    ]
+    if pending_submission_ids:
+        evidence_items = doc_query.filter(
+            Document.submission_id.in_(pending_submission_ids)
+        ).count()
+    else:
+        evidence_items = 0
 
     return {
         "message": "Reviewer Dashboard",

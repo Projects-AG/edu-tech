@@ -7,7 +7,10 @@ import React, {
 } from "react";
 
 import { ROLES, normalizeRole } from "../config/roles";
-import { ROLE_FALLBACK_PERMISSIONS } from "../config/permissions";
+import {
+  FRONTEND_PERMISSION_ALIASES,
+  ROLE_FALLBACK_PERMISSIONS,
+} from "../config/permissions";
 import api from "../services/api";
 
 const AuthContext = createContext(null);
@@ -70,8 +73,6 @@ export const AuthProvider = ({ children }) => {
     api
       .get("/auth/me")
       .then((res) => {
-        console.log("AUTH ME RESPONSE:", res.data);
-
         const authenticatedRole = res.data?.role?.name;
 
         if (authenticatedRole) {
@@ -122,13 +123,10 @@ export const AuthProvider = ({ children }) => {
         }
       })
       .catch((err) => {
-        console.error("AUTH ME FAILED:", err);
-
         if (
           err.response?.status === 401 ||
           err.response?.status === 403
         ) {
-          console.warn("Token is invalid. Clearing session.");
 
           localStorage.removeItem("accessToken");
           localStorage.removeItem("user");
@@ -154,10 +152,7 @@ export const AuthProvider = ({ children }) => {
       return normalizeRole(devRole);
     }
 
-    const roleCandidate =
-      user?.role ||
-      storedRole ||
-      ROLES.COORDINATOR;
+    const roleCandidate = user?.role || storedRole;
 
     return normalizeRole(roleCandidate);
   }, [user, storedRole, devRole]);
@@ -166,11 +161,11 @@ export const AuthProvider = ({ children }) => {
   // Effective permissions
   // ---------------------------------------
   const effectivePermissions = useMemo(() => {
-    if (
-      backendPermissions &&
-      backendPermissions.length > 0 &&
-      (!import.meta.env.DEV || !devRole)
-    ) {
+    if (import.meta.env.DEV && devRole) {
+      return ROLE_FALLBACK_PERMISSIONS[activeRole] || [];
+    }
+
+    if (Array.isArray(backendPermissions)) {
       return backendPermissions;
     }
 
@@ -189,7 +184,19 @@ export const AuthProvider = ({ children }) => {
       return true;
     }
 
-    return effectivePermissions.includes(permKey);
+    if (!permKey) {
+      return false;
+    }
+
+    if (effectivePermissions.includes(permKey)) {
+      return true;
+    }
+
+    const aliases = FRONTEND_PERMISSION_ALIASES[permKey] || [];
+
+    return aliases.some((alias) =>
+      effectivePermissions.includes(alias)
+    );
   };
 
   // ---------------------------------------

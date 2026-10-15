@@ -9,7 +9,7 @@ export const RolePermissions = () => {
       <PageHeader
         eyebrow="SECURITY & ACCESS CONTROL"
         title="Role & Permission Matrix"
-        description="Inspect active permission mappings for the 7 institutional roles."
+        description="Inspect fallback permission mappings aligned with the backend Role → Module → Permission matrix."
       />
       <div className="panel">
         <div style={{ overflowX: "auto" }}>

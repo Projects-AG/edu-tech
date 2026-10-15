@@ -1,6 +1,7 @@
+import mimetypes
 from pathlib import Path
 from uuid import uuid4
-from typing import List
+from typing import List, Optional
 
 from fastapi import (
     APIRouter,
@@ -11,9 +12,15 @@ from fastapi import (
     File,
     Form,
 )
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import get_db, get_current_user
+from app.auth.dependencies import (
+    get_db,
+    get_current_user,
+    require_permission,
+)
+from app.auth.registration_authority import ADMIN, get_role_name
 from app.models import (
     Document,
     DocumentVersion,
@@ -43,8 +50,10 @@ router = APIRouter(
 # LOCAL FILE STORAGE
 # ============================================================
 
+BASE_DIR = Path(__file__).resolve().parents[2]
+
 UPLOAD_ROOT = (
-    Path(__file__).resolve().parents[2]
+    BASE_DIR
     / "uploads"
     / "evidence"
 )
@@ -53,6 +62,86 @@ UPLOAD_ROOT.mkdir(
     parents=True,
     exist_ok=True
 )
+
+
+DEPARTMENT_SCOPED_ROLES = {
+    "Dept. Coordinator",
+    "Committee Member",
+}
+
+
+def is_platform_admin(db: Session, user: User) -> bool:
+    return get_role_name(db, user.role_id) == ADMIN
+
+
+def assigned_department_id(user: User) -> int | None:
+    department_id = user.department_id
+    if not department_id:
+        return None
+    return department_id
+
+
+def require_user_institution(db: Session, current_user: User) -> None:
+    if is_platform_admin(db, current_user):
+        return
+
+    if not current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not assigned to an institution",
+        )
+
+
+def assert_evidence_write_access(
+    db: Session,
+    current_user: User,
+    submission: Submission | None,
+) -> None:
+    """Evidence is written only by institution users for their own scope."""
+    if is_platform_admin(db, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Platform Admin cannot upload or change institution evidence"
+            ),
+        )
+
+    if not current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not assigned to an institution",
+        )
+
+    if (
+        submission is not None
+        and submission.institution_id != current_user.institution_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You cannot upload evidence "
+                "to another institution's submission"
+            ),
+        )
+
+    role_name = get_role_name(db, current_user.role_id)
+    if role_name not in DEPARTMENT_SCOPED_ROLES:
+        return
+
+    user_department_id = assigned_department_id(current_user)
+    if not user_department_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not assigned to a department",
+        )
+    if submission is None or submission.department_id != user_department_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Evidence can only be attached to a submission "
+                "of your assigned department"
+            ),
+        )
 
 
 ALLOWED_EXTENSIONS = {
@@ -76,15 +165,40 @@ ALLOWED_EXTENSIONS = {
     response_model=List[DocumentResponse]
 )
 def get_documents(
-    current_user: User = Depends(get_current_user),
+    submission_id: Optional[int] = None,
+    current_user: User = Depends(
+        require_permission("EVIDENCE", "View")
+    ),
     db: Session = Depends(get_db)
 ):
+    require_user_institution(db, current_user)
+
     query = db.query(Document)
 
     if current_user.institution_id:
         query = query.filter(
             Document.institution_id
             == current_user.institution_id
+        )
+
+    if submission_id is not None:
+        query = query.filter(
+            Document.submission_id == submission_id
+        )
+
+    role_name = get_role_name(db, current_user.role_id)
+    if role_name in DEPARTMENT_SCOPED_ROLES:
+        user_department_id = assigned_department_id(current_user)
+        if not user_department_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User is not assigned to a department",
+            )
+        query = query.join(
+            Submission,
+            Document.submission_id == Submission.id,
+        ).filter(
+            Submission.department_id == user_department_id
         )
 
     return query.order_by(
@@ -102,32 +216,16 @@ def get_documents(
 )
 def get_document_versions(
     document_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        require_permission("EVIDENCE", "View")
+    ),
     db: Session = Depends(get_db)
 ):
-    document = (
-        db.query(Document)
-        .filter(
-            Document.id == document_id
-        )
-        .first()
+    document = get_accessible_document(
+        document_id,
+        current_user,
+        db
     )
-
-    if not document:
-        raise HTTPException(
-            status_code=404,
-            detail="Document not found"
-        )
-
-    if (
-        current_user.institution_id
-        and document.institution_id
-        != current_user.institution_id
-    ):
-        raise HTTPException(
-            status_code=403,
-            detail="You cannot view another institution's document"
-        )
 
     return (
         db.query(DocumentVersion)
@@ -153,10 +251,26 @@ def get_document_versions(
 )
 def create_document(
     doc_data: DocumentCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        require_permission("EVIDENCE", "Upload")
+    ),
     db: Session = Depends(get_db)
 ):
-    inst_id = current_user.institution_id or 1
+    submission = None
+    if doc_data.submission_id is not None:
+        submission = (
+            db.query(Submission)
+            .filter(Submission.id == doc_data.submission_id)
+            .first()
+        )
+        if not submission:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Submission not found",
+            )
+    assert_evidence_write_access(db, current_user, submission)
+
+    inst_id = current_user.institution_id
 
     doc = Document(
         institution_id=inst_id,
@@ -189,9 +303,12 @@ async def upload_document(
     file: UploadFile = File(...),
     submission_id: int | None = Form(None),
     title: str | None = Form(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        require_permission("EVIDENCE", "Upload")
+    ),
     db: Session = Depends(get_db)
 ):
+    require_user_institution(db, current_user)
 
     if not file.filename:
         raise HTTPException(
@@ -246,18 +363,9 @@ async def upload_document(
                 detail="Submission not found"
             )
 
-        if (
-            current_user.institution_id
-            and submission.institution_id
-            != current_user.institution_id
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail=(
-                    "You cannot upload evidence "
-                    "to another institution's submission"
-                )
-            )
+    assert_evidence_write_access(db, current_user, submission)
+
+    if submission is not None:
 
         if submission.status not in {
             "Draft",
@@ -276,18 +384,11 @@ async def upload_document(
         # Find metric
         # ----------------------------------------------------
 
-        metric = None
+        from app.services.operational_metric_service import (
+            resolve_metric_for_submission,
+        )
 
-        if submission.metric_code:
-
-            metric = (
-                db.query(Metric)
-                .filter(
-                    Metric.code
-                    == submission.metric_code
-                )
-                .first()
-            )
+        metric = resolve_metric_for_submission(db, submission)
 
         # ----------------------------------------------------
         # Find evidence requirement
@@ -438,6 +539,254 @@ async def upload_document(
 
 
 # ============================================================
+# EVIDENCE FILE ACCESS HELPERS
+# ============================================================
+
+def get_accessible_document(
+    document_id: int,
+    current_user: User,
+    db: Session
+) -> Document:
+    """
+    Load a document and enforce institution and department access.
+    """
+
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id
+        )
+        .first()
+    )
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    require_user_institution(db, current_user)
+
+    if (
+        not is_platform_admin(db, current_user)
+        and document.institution_id
+        != current_user.institution_id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "You cannot access another "
+                "institution's evidence file"
+            )
+        )
+
+    role_name = get_role_name(db, current_user.role_id)
+    if role_name in DEPARTMENT_SCOPED_ROLES:
+        user_department_id = assigned_department_id(current_user)
+        if not user_department_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User is not assigned to a department",
+            )
+
+        submission = None
+        if document.submission_id:
+            submission = (
+                db.query(Submission)
+                .filter(Submission.id == document.submission_id)
+                .first()
+            )
+
+        if (
+            not submission
+            or submission.department_id != user_department_id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "You cannot access evidence "
+                    "from another department"
+                )
+            )
+
+    return document
+
+
+def resolve_evidence_file(
+    document: Document
+) -> Path:
+    """
+    Map the stored path (e.g. /uploads/evidence/submission_16/x.png)
+    onto the filesystem, refusing anything that escapes UPLOAD_ROOT.
+    """
+
+    stored_path = (
+        document.file_path or ""
+    ).strip()
+
+    if not stored_path:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Evidence file not found on server"
+            )
+        )
+
+    file_path = (
+        BASE_DIR
+        / stored_path.lstrip("/\\")
+    ).resolve()
+
+    # Reject path traversal such as
+    # /uploads/evidence/../../.env
+    if not file_path.is_relative_to(
+        UPLOAD_ROOT.resolve()
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Invalid evidence file path"
+            )
+        )
+
+    if not file_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Evidence file not found on server"
+            )
+        )
+
+    return file_path
+
+
+def resolve_media_type(
+    document: Document,
+    file_path: Path
+) -> str:
+    """
+    Uploads store either a MIME type or a bare extension,
+    so only trust file_type when it actually looks like a MIME type.
+    """
+
+    file_type = (
+        document.file_type or ""
+    ).strip()
+
+    if "/" in file_type:
+        return file_type
+
+    guessed, _ = mimetypes.guess_type(
+        file_path.name
+    )
+
+    return (
+        guessed
+        or "application/octet-stream"
+    )
+
+
+def resolve_evidence_filename(
+    document: Document,
+    file_path: Path
+) -> str:
+    """
+    Prefer the human-readable title, falling back to the stored
+    name. Titles are entered without an extension, so add one.
+    """
+
+    name = (
+        document.title or ""
+    ).strip() or file_path.name
+
+    if not Path(name).suffix:
+        name = (
+            f"{name}"
+            f"{file_path.suffix}"
+        )
+
+    return name
+
+
+# ============================================================
+# PREVIEW DOCUMENT
+# ============================================================
+
+@router.get(
+    "/{document_id}/preview"
+)
+def preview_document(
+    document_id: int,
+    current_user: User = Depends(
+        require_permission("EVIDENCE", "View")
+    ),
+    db: Session = Depends(get_db)
+):
+
+    document = get_accessible_document(
+        document_id,
+        current_user,
+        db
+    )
+
+    file_path = resolve_evidence_file(
+        document
+    )
+
+    return FileResponse(
+        path=str(file_path),
+        filename=resolve_evidence_filename(
+            document,
+            file_path
+        ),
+        media_type=resolve_media_type(
+            document,
+            file_path
+        ),
+        content_disposition_type="inline",
+    )
+
+
+# ============================================================
+# DOWNLOAD DOCUMENT
+# ============================================================
+
+@router.get(
+    "/{document_id}/download"
+)
+def download_document(
+    document_id: int,
+    current_user: User = Depends(
+        require_permission("EVIDENCE", "View")
+    ),
+    db: Session = Depends(get_db)
+):
+
+    document = get_accessible_document(
+        document_id,
+        current_user,
+        db
+    )
+
+    file_path = resolve_evidence_file(
+        document
+    )
+
+    return FileResponse(
+        path=str(file_path),
+        filename=resolve_evidence_filename(
+            document,
+            file_path
+        ),
+        media_type=resolve_media_type(
+            document,
+            file_path
+        ),
+        content_disposition_type="attachment",
+    )
+
+
+# ============================================================
 # REPLACE DOCUMENT / CREATE NEW VERSION
 # ============================================================
 
@@ -448,9 +797,12 @@ async def upload_document(
 async def replace_document(
     document_id: int,
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        require_permission("EVIDENCE", "Upload")
+    ),
     db: Session = Depends(get_db)
 ):
+    require_user_institution(db, current_user)
 
     if not file.filename:
         raise HTTPException(
@@ -473,7 +825,7 @@ async def replace_document(
         )
 
     if (
-        current_user.institution_id
+        not is_platform_admin(db, current_user)
         and document.institution_id
         != current_user.institution_id
     ):
@@ -481,6 +833,15 @@ async def replace_document(
             status_code=403,
             detail="You cannot replace another institution's document"
         )
+
+    document_submission = None
+    if document.submission_id:
+        document_submission = (
+            db.query(Submission)
+            .filter(Submission.id == document.submission_id)
+            .first()
+        )
+    assert_evidence_write_access(db, current_user, document_submission)
 
     original_name = Path(file.filename).name
 

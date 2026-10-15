@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from app.models import Review, Submission, User
+from app.services.audit_service import record_audit
 from app.services.submission_service import transition_submission_state
 
 
@@ -102,6 +103,22 @@ def create_review_decision(
     )
 
     db.add(review)
+    db.flush()
+
+    record_audit(
+        db,
+        user=reviewer_user,
+        action="REVIEW_DECISION",
+        entity_type="Review",
+        entity_id=review.id,
+        new_values={
+            "status": review_status,
+            "submission_id": submission.id,
+            "score": score,
+            "max_score": max_score,
+        },
+        institution_id=submission.institution_id,
+    )
 
     # ---------------------------------------------------------
     # CENTRALIZED SUBMISSION STATE TRANSITION

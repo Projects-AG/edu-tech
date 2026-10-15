@@ -27,6 +27,7 @@ const APPROVAL_ROLES = [
 ];
 
 const ROLE_AUTHORITY = {
+  "Institution Admin": "Admin",
   "Committee Member": "Dept. Coordinator",
   "Dept. Coordinator": "NAAC Coordinator",
   "NAAC Coordinator": "Principal / Director",
@@ -633,18 +634,12 @@ const RegistrationRequests = () => {
     }
 
     /*
-     * Admin can approve all pending requests.
-     */
-    if (currentRole === "Admin") {
-      return true;
-    }
-
-    /*
-     * For non-admin approval roles,
-     * the backend decides the actual authority.
+     * Approve/Reject follow ROLE_AUTHORITY for every
+     * approver, including Admin.
      *
-     * Frontend additionally checks the configured
-     * hierarchy where possible.
+     * Admin still sees the full list for oversight,
+     * but can only act when they are the mapped
+     * authority (Principal / Reviewer / Data Approver).
      */
     const requestedRole =
       normalizeRole(
@@ -660,6 +655,23 @@ const RegistrationRequests = () => {
       requiredApprover ===
       currentRole
     );
+  };
+
+  const canViewRequestDetails = (
+    request
+  ) => {
+    if (!request) {
+      return false;
+    }
+
+    if (
+      String(request.status || "").toUpperCase() ===
+      "PENDING"
+    ) {
+      return canApproveRequest(request);
+    }
+
+    return true;
   };
 
   // =========================
@@ -1650,6 +1662,11 @@ const RegistrationRequests = () => {
                         request
                       );
 
+                    const canView =
+                      canViewRequestDetails(
+                        request
+                      );
+
                     return (
                       <tr
                         key={
@@ -1756,19 +1773,21 @@ const RegistrationRequests = () => {
 
                           <div className="action-buttons">
 
-                            <button
-                              className="icon-action view"
-                              title="View"
-                              onClick={() =>
-                                handleView(
-                                  request
-                                )
-                              }
-                            >
-                              <Eye
-                                size={16}
-                              />
-                            </button>
+                            {canView && (
+                              <button
+                                className="icon-action view"
+                                title="View"
+                                onClick={() =>
+                                  handleView(
+                                    request
+                                  )
+                                }
+                              >
+                                <Eye
+                                  size={16}
+                                />
+                              </button>
+                            )}
 
                             {canAct && (
                               <>

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Check, X, RefreshCw, Eye } from "lucide-react";
 import api from "../../services/api";
+import frameworkService from "../../services/frameworkService";
+import { frameworkOptionLabel } from "../../services/frameworkReadiness";
 import PageHeader from "../../components/common/PageHeader";
 
 const InstitutionRequests = () => {
@@ -13,6 +15,9 @@ const InstitutionRequests = () => {
 
   const [processingId, setProcessingId] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
+  const [frameworks, setFrameworks] = useState([]);
+  const [overrideFrameworkId, setOverrideFrameworkId] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
 
   const loadRequests = async () => {
     setLoading(true);
@@ -44,6 +49,9 @@ const InstitutionRequests = () => {
 
   useEffect(() => {
     loadRequests();
+    frameworkService.listFrameworks()
+      .then((data) => setFrameworks(data))
+      .catch(() => setFrameworks([]));
   }, []);
 
   // -----------------------------------------
@@ -61,8 +69,16 @@ const InstitutionRequests = () => {
       setError("");
       setSuccessMessage("");
 
+      const body = {};
+      if (overrideFrameworkId) {
+        body.confirmed_framework_id = Number(overrideFrameworkId);
+      }
+      if (overrideReason.trim()) {
+        body.override_reason = overrideReason.trim();
+      }
       const response = await api.post(
-        `/institution-requests/${request.id}/approve`
+        `/institution-requests/${request.id}/approve`,
+        Object.keys(body).length ? body : {}
       );
 
       console.log("APPROVE RESPONSE:", response.data);
@@ -469,6 +485,44 @@ const InstitutionRequests = () => {
               />
 
               <Detail
+                label="Official category"
+                value={selectedRequest.official_category}
+              />
+
+              <Detail
+                label="Affiliated university"
+                value={selectedRequest.affiliated_university}
+              />
+
+              <Detail
+                label="Parent institution"
+                value={selectedRequest.parent_institution_name}
+              />
+
+              <Detail
+                label="Programme level"
+                value={selectedRequest.programme_level}
+              />
+
+              <div style={{ gridColumn: "1 / -1" }}>
+                <Detail
+                  label="Recommended framework"
+                  value={
+                    selectedRequest.recommended_framework
+                      ? `${selectedRequest.recommended_framework.name} (${selectedRequest.recommended_framework.version})`
+                      : selectedRequest.recommendation_status || "Pending framework verification"
+                  }
+                />
+              </div>
+
+              <div style={{ gridColumn: "1 / -1" }}>
+                <Detail
+                  label="Recommendation reason"
+                  value={selectedRequest.recommendation_reason}
+                />
+              </div>
+
+              <Detail
                 label="Requester"
                 value={selectedRequest.requester_name}
               />
@@ -520,8 +574,36 @@ const InstitutionRequests = () => {
                   display: "flex",
                   justifyContent: "flex-end",
                   gap: "10px",
+                  flexWrap: "wrap",
                 }}
               >
+                <select
+                  value={overrideFrameworkId}
+                  onChange={(event) => setOverrideFrameworkId(event.target.value)}
+                  style={{ minWidth: "220px", padding: "8px" }}
+                >
+                  <option value="">Confirm recommended framework</option>
+                  {frameworks
+                    .filter(
+                      (item) =>
+                        item.confirmable &&
+                        selectedRequest.recommended_framework_id != null &&
+                        Number(item.id) ===
+                          Number(selectedRequest.recommended_framework_id)
+                    )
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {frameworkOptionLabel(item)}
+                      </option>
+                    ))}
+                </select>
+                <input
+                  type="text"
+                  placeholder="Confirmation note (optional)"
+                  value={overrideReason}
+                  onChange={(event) => setOverrideReason(event.target.value)}
+                  style={{ minWidth: "240px", padding: "8px" }}
+                />
                 <button
                   onClick={() => {
                     setShowDetails(false);

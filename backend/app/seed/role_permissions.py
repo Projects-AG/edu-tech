@@ -388,6 +388,41 @@ def seed_role_permissions():
         )
 
         # ==========================================
+        # INSTITUTION ADMIN
+        #
+        # Own institution only. User and department
+        # administration. No NAAC structure, reports,
+        # or platform-wide institution create/delete.
+        # ==========================================
+
+        for permission in ["View"]:
+            add_permission(
+                db,
+                "Institution Admin",
+                "DASHBOARD",
+                permission
+            )
+
+        for permission in [
+            "View",
+            "Create",
+            "Edit",
+            "Delete",
+        ]:
+            add_permission(
+                db,
+                "Institution Admin",
+                "INSTITUTION_MANAGEMENT",
+                permission
+            )
+            add_permission(
+                db,
+                "Institution Admin",
+                "USER_MANAGEMENT",
+                permission
+            )
+
+        # ==========================================
         # SAVE
         # ==========================================
 

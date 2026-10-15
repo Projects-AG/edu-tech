@@ -1,4 +1,5 @@
 from app.db.database import SessionLocal
+from app.models.institution import Institution
 from app.models.user import User
 from app.models.role import Role
 from app.auth.security import hash_password
@@ -14,18 +15,57 @@ users_to_insert = [
     ("Principal / Director", "director@university.edu", "password123", "Principal / Director"),
 ]
 
+INSTITUTION_SCOPED_ROLES = {
+    "Committee Member",
+    "Reviewer",
+    "Data Approver",
+    "Principal / Director",
+}
+COORDINATOR_EMAILS = (
+    "coordinator@test.com",
+    "coordinator@university.edu",
+)
+
+
+def resolve_scoped_institution_id(db):
+    coordinator = (
+        db.query(User)
+        .filter(
+            User.email.in_(COORDINATOR_EMAILS),
+            User.institution_id.isnot(None),
+        )
+        .first()
+    )
+    if coordinator:
+        return coordinator.institution_id
+
+    institution = (
+        db.query(Institution)
+        .order_by(Institution.id)
+        .first()
+    )
+    return institution.id if institution else None
+
 
 db = SessionLocal()
 
 try:
+    scoped_institution_id = resolve_scoped_institution_id(db)
+
     for name, email, password, role_name in users_to_insert:
 
         # Find role
         role = db.query(Role).filter(Role.name == role_name).first()
 
         if not role:
-            print(f"❌ Role not found: {role_name}")
+            print(f"Role not found: {role_name}")
             continue
+
+        assigned_institution_id = (
+            scoped_institution_id
+            if role_name in INSTITUTION_SCOPED_ROLES
+            else None
+        )
 
         # Check if user already exists
         existing_user = (
@@ -35,7 +75,18 @@ try:
         )
 
         if existing_user:
-            print(f"⚠️ User already exists: {email}")
+            if (
+                role_name in INSTITUTION_SCOPED_ROLES
+                and existing_user.institution_id is None
+                and assigned_institution_id is not None
+            ):
+                existing_user.institution_id = assigned_institution_id
+                print(
+                    f"Assigned existing {role_name} to institution "
+                    f"{assigned_institution_id}: {email}"
+                )
+            else:
+                print(f"User already exists: {email}")
             continue
 
         # Create user
@@ -44,14 +95,14 @@ try:
             email=email,
             password_hash=hash_password(password),
             role_id=role.id,
-            institution_id=None,
+            institution_id=assigned_institution_id,
             department_id=None,
             is_active=True,
         )
 
         db.add(user)
 
-        print(f"✅ Created: {email} → {role_name}")
+        print(f"Created: {email} -> {role_name}")
 
     db.commit()
 

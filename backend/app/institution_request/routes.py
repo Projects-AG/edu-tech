@@ -2,6 +2,7 @@ from datetime import datetime
 
 from fastapi import (
     APIRouter,
+    Body,
     Depends,
     HTTPException,
     status,
@@ -14,17 +15,36 @@ from app.auth.dependencies import (
     require_permission,
     get_db,
 )
+from app.auth.registration_authority import ADMIN, get_role_name
 
+from app.institution.defaults import (
+    ensure_default_faculty_and_department,
+)
 from app.models import (
     Institution,
     InstitutionRequest,
+    NaacFramework,
     User,
 )
 
 from app.schemas.institution_request import (
+    InstitutionRequestApprove,
     InstitutionRequestCreate,
     InstitutionRequestResponse,
     InstitutionRequestReject,
+)
+from app.services.audit_service import record_audit
+from app.services.framework_service import (
+    PROFILE_FIELDS,
+    assert_confirmable_framework,
+    assert_framework_matches_category,
+    copy_profile_fields,
+    ensure_naac_frameworks,
+    get_framework_or_404,
+    institution_profile,
+    recommend_framework,
+    sanitize_profile_for_category,
+    serialize_framework_with_criteria,
 )
 
 
@@ -32,6 +52,47 @@ router = APIRouter(
     prefix="/institution-requests",
     tags=["Institution Requests"],
 )
+
+
+def is_platform_admin(db: Session, user: User) -> bool:
+    return get_role_name(db, user.role_id) == ADMIN
+
+
+def require_platform_admin(db: Session, current_user: User) -> None:
+    if not is_platform_admin(db, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only platform Admin can manage institution requests",
+        )
+
+
+def serialize_institution_request(
+    db: Session,
+    request: InstitutionRequest,
+) -> dict:
+    recommended = None
+    confirmed = None
+    if request.recommended_framework_id:
+        framework = (
+            db.query(NaacFramework)
+            .filter(NaacFramework.id == request.recommended_framework_id)
+            .first()
+        )
+        if framework:
+            recommended = serialize_framework_with_criteria(db, framework)
+    if request.confirmed_framework_id:
+        framework = (
+            db.query(NaacFramework)
+            .filter(NaacFramework.id == request.confirmed_framework_id)
+            .first()
+        )
+        if framework:
+            confirmed = serialize_framework_with_criteria(db, framework)
+
+    payload = InstitutionRequestResponse.model_validate(request).model_dump()
+    payload["recommended_framework"] = recommended
+    payload["confirmed_framework"] = confirmed
+    return payload
 
 
 # ============================================================
@@ -149,6 +210,53 @@ def create_institution_request(
             else None
         ),
 
+        official_category=(
+            request.official_category.strip().upper()
+            if request.official_category
+            else None
+        ),
+        affiliation_status=(
+            request.affiliation_status.strip()
+            if request.affiliation_status
+            else None
+        ),
+        affiliated_university=(
+            request.affiliated_university.strip()
+            if request.affiliated_university
+            else None
+        ),
+        autonomous_status=(
+            request.autonomous_status.strip()
+            if request.autonomous_status
+            else None
+        ),
+        is_constituent_unit=request.is_constituent_unit,
+        parent_institution_name=(
+            request.parent_institution_name.strip()
+            if request.parent_institution_name
+            else None
+        ),
+        programme_level=(
+            request.programme_level.strip().upper()
+            if request.programme_level
+            else None
+        ),
+        existing_naac_status=(
+            request.existing_naac_status.strip()
+            if request.existing_naac_status
+            else None
+        ),
+        previous_cycle_number=(
+            request.previous_cycle_number.strip()
+            if request.previous_cycle_number
+            else None
+        ),
+        application_pathway=(
+            request.application_pathway.strip()
+            if request.application_pathway
+            else None
+        ),
+
         website=(
             request.website.strip()
             if request.website
@@ -158,11 +266,28 @@ def create_institution_request(
         status="PENDING",
     )
 
+    cleaned_profile = sanitize_profile_for_category(
+        institution_profile(institution_request)
+    )
+    for field in PROFILE_FIELDS:
+        setattr(institution_request, field, cleaned_profile[field])
+
+    recommendation = recommend_framework(db, cleaned_profile)
+    institution_request.recommended_framework_id = recommendation[
+        "recommended_framework_id"
+    ]
+    institution_request.recommendation_status = recommendation[
+        "recommendation_status"
+    ]
+    institution_request.recommendation_reason = recommendation[
+        "recommendation_reason"
+    ]
+
     db.add(institution_request)
     db.commit()
     db.refresh(institution_request)
 
-    return institution_request
+    return serialize_institution_request(db, institution_request)
 
 
 # ============================================================
@@ -182,6 +307,8 @@ def get_institution_requests(
     ),
     db: Session = Depends(get_db),
 ):
+    require_platform_admin(db, current_user)
+
     requests = (
         db.query(InstitutionRequest)
         .order_by(
@@ -190,7 +317,10 @@ def get_institution_requests(
         .all()
     )
 
-    return requests
+    return [
+        serialize_institution_request(db, item)
+        for item in requests
+    ]
 
 
 # ============================================================
@@ -211,6 +341,8 @@ def get_institution_request(
     ),
     db: Session = Depends(get_db),
 ):
+    require_platform_admin(db, current_user)
+
     request = (
         db.query(InstitutionRequest)
         .filter(
@@ -225,7 +357,7 @@ def get_institution_request(
             detail="Institution request not found.",
         )
 
-    return request
+    return serialize_institution_request(db, request)
 
 
 # ============================================================
@@ -238,6 +370,7 @@ def get_institution_request(
 )
 def approve_institution_request(
     request_id: int,
+    payload: InstitutionRequestApprove | None = Body(default=None),
     current_user: User = Depends(
         require_permission(
             "INSTITUTION_MANAGEMENT",
@@ -246,6 +379,8 @@ def approve_institution_request(
     ),
     db: Session = Depends(get_db),
 ):
+    require_platform_admin(db, current_user)
+
     request = (
         db.query(InstitutionRequest)
         .filter(
@@ -343,6 +478,28 @@ def approve_institution_request(
     # Create institution
     # --------------------------------------------------------
 
+    approval = payload or InstitutionRequestApprove()
+    ensure_naac_frameworks(db)
+    confirmed_framework_id = approval.confirmed_framework_id
+    override_reason = (
+        approval.override_reason.strip()
+        if approval.override_reason
+        else None
+    )
+
+    if confirmed_framework_id is None:
+        confirmed_framework_id = request.recommended_framework_id
+
+    confirmed_framework = None
+    if confirmed_framework_id:
+        confirmed_framework = get_framework_or_404(db, confirmed_framework_id)
+        assert_confirmable_framework(confirmed_framework)
+        # An override reason is recorded but never bypasses category mapping.
+        assert_framework_matches_category(
+            sanitize_profile_for_category(institution_profile(request)),
+            confirmed_framework,
+        )
+
     institution = Institution(
         name=request.institution_name,
         code=institution_code,
@@ -353,10 +510,22 @@ def approve_institution_request(
         institution_type=request.institution_type,
         website=request.website,
         created_by=current_user.id,
+        confirmed_framework_id=(
+            confirmed_framework.id if confirmed_framework else None
+        ),
+        framework_confirmed_by=(
+            current_user.id if confirmed_framework else None
+        ),
+        framework_confirmed_at=(
+            datetime.utcnow() if confirmed_framework else None
+        ),
+        framework_confirmation_note=override_reason,
     )
+    copy_profile_fields(request, institution)
 
     db.add(institution)
     db.flush()
+    ensure_default_faculty_and_department(db, institution)
 
     # --------------------------------------------------------
     # Update request
@@ -371,11 +540,29 @@ def approve_institution_request(
     request.created_institution_id = institution.id
 
     request.rejection_reason = None
+    request.confirmed_framework_id = (
+        confirmed_framework.id if confirmed_framework else None
+    )
+    request.framework_override_reason = override_reason
+
+    record_audit(
+        db,
+        user=current_user,
+        action="INSTITUTION_FRAMEWORK_CONFIRM",
+        entity_type="Institution",
+        entity_id=institution.id,
+        new_values={
+            "confirmed_framework_id": request.confirmed_framework_id,
+            "recommendation_status": request.recommendation_status,
+            "override_reason": override_reason,
+        },
+        institution_id=institution.id,
+    )
 
     db.commit()
     db.refresh(request)
 
-    return request
+    return serialize_institution_request(db, request)
 
 
 # ============================================================
@@ -397,6 +584,8 @@ def reject_institution_request(
     ),
     db: Session = Depends(get_db),
 ):
+    require_platform_admin(db, current_user)
+
     request = (
         db.query(InstitutionRequest)
         .filter(
@@ -433,6 +622,6 @@ def reject_institution_request(
     db.commit()
     db.refresh(request)
 
-    return request
+    return serialize_institution_request(db, request)
 
 

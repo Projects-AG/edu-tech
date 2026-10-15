@@ -13,6 +13,7 @@ import {
   Settings,
   UserCheck,
   ClipboardList,
+  ScrollText,
 } from "lucide-react";
 
 import {
@@ -49,6 +50,12 @@ export const NAVIGATION_CONFIG = {
       icon: Award,
     },
 
+    {
+      label: "Accreditation Cycles",
+      path: "/accreditation-cycles",
+      icon: Award,
+    },
+
     // ========================================================
     // PHASE 7 - COMMITTEE MANAGEMENT
     // ========================================================
@@ -72,12 +79,6 @@ export const NAVIGATION_CONFIG = {
     },
 
     {
-      label: "Review & Approval",
-      path: "/review",
-      icon: CheckSquare,
-    },
-
-    {
       label: "Registration Approvals",
       path: "/admin/registration-requests",
       icon: UserCheck,
@@ -87,6 +88,12 @@ export const NAVIGATION_CONFIG = {
       label: "Reports",
       path: "/reports",
       icon: BarChart3,
+    },
+
+    {
+      label: "Audit Logs",
+      path: "/audit-logs",
+      icon: ScrollText,
     },
 
     {
@@ -111,12 +118,6 @@ export const NAVIGATION_CONFIG = {
       label: "NAAC Criteria",
       path: "/criteria",
       icon: Award,
-    },
-
-    {
-      label: "Documents & Evidence",
-      path: "/documents",
-      icon: UploadCloud,
     },
 
     {
@@ -182,6 +183,12 @@ export const NAVIGATION_CONFIG = {
     },
 
     {
+      label: "Registration Approvals",
+      path: "/admin/registration-requests",
+      icon: UserCheck,
+    },
+
+    {
       label: "Notifications",
       path: "/notifications",
       icon: Bell,
@@ -197,18 +204,6 @@ export const NAVIGATION_CONFIG = {
       label: "Dashboard",
       path: "/dashboard",
       icon: LayoutDashboard,
-    },
-
-    {
-      label: "Submissions",
-      path: "/submissions",
-      icon: FileText,
-    },
-
-    {
-      label: "Documents & Evidence",
-      path: "/documents",
-      icon: UploadCloud,
     },
 
     {
@@ -239,18 +234,6 @@ export const NAVIGATION_CONFIG = {
       label: "Submissions",
       path: "/submissions",
       icon: FileText,
-    },
-
-    {
-      label: "Documents & Evidence",
-      path: "/documents",
-      icon: UploadCloud,
-    },
-
-    {
-      label: "Review & Approval",
-      path: "/review",
-      icon: CheckSquare,
     },
 
     {
@@ -314,6 +297,12 @@ export const NAVIGATION_CONFIG = {
     },
 
     {
+      label: "Audit Logs",
+      path: "/audit-logs",
+      icon: ScrollText,
+    },
+
+    {
       label: "Notifications",
       path: "/notifications",
       icon: Bell,
@@ -371,6 +360,12 @@ export const NAVIGATION_CONFIG = {
     },
 
     {
+      label: "Audit Logs",
+      path: "/audit-logs",
+      icon: ScrollText,
+    },
+
+    {
       label: "Notifications",
       path: "/notifications",
       icon: Bell,
@@ -395,9 +390,9 @@ export const NAVIGATION_CONFIG = {
     },
 
     {
-      label: "Institution Requests",
-      path: "/admin/institution-requests",
-      icon: ClipboardList,
+      label: "Accreditation Cycles",
+      path: "/accreditation-cycles",
+      icon: Award,
     },
 
     {
@@ -405,6 +400,7 @@ export const NAVIGATION_CONFIG = {
       path: "/admin/institution-requests",
       icon: ClipboardList,
     },
+
     {
       label: "User Management",
       path: "/admin/users",
@@ -436,6 +432,12 @@ export const NAVIGATION_CONFIG = {
     },
 
     {
+      label: "Audit Logs",
+      path: "/audit-logs",
+      icon: ScrollText,
+    },
+
+    {
       label: "Notifications",
       path: "/notifications",
       icon: Bell,
@@ -450,10 +452,7 @@ export const NAVIGATION_CONFIG = {
 export const getNavigationForRole = (roleStr) => {
   const normalizedRole = normalizeRole(roleStr);
 
-  return (
-    NAVIGATION_CONFIG[normalizedRole] ||
-    NAVIGATION_CONFIG[ROLES.NAAC_COORDINATOR]
-  );
+  return NAVIGATION_CONFIG[normalizedRole] || [];
 };
 
 

@@ -8,7 +8,6 @@ import DashboardLayout from "../components/layout/DashboardLayout";
 // =========================================
 import Login from "../pages/Login";
 import Register from "../pages/Register";
-import ForgotPassword from "../pages/ForgotPassword";
 
 // =========================================
 // CORE PAGES
@@ -22,8 +21,11 @@ import MetricSubmission from "../pages/MetricSubmission";
 import Documents from "../pages/Documents";
 import EvidenceUpload from "../pages/EvidenceUpload";
 import Submissions from "../pages/Submissions";
-import Review from "../pages/Review";
+import NewSubmission from "../pages/NewSubmission";
+import SubmissionDetail from "../pages/SubmissionDetail";
+import AccreditationCycles from "../pages/AccreditationCycles";
 import Reports from "../pages/Reports";
+import AuditLogs from "../pages/AuditLogs";
 import Notifications from "../pages/Notifications";
 import Institution from "../pages/Institution";
 import Unauthorized from "../pages/Unauthorized";
@@ -76,18 +78,13 @@ const ProtectedRoute = ({
   // =========================================
   // SINGLE ROLE RESTRICTION
   // =========================================
-  if (role) {
-    if (
-      activeRole !== role &&
-      activeRole !== "Admin"
-    ) {
-      return (
-        <Navigate
-          to="/unauthorized"
-          replace
-        />
-      );
-    }
+  if (role && activeRole !== role) {
+    return (
+      <Navigate
+        to="/unauthorized"
+        replace
+      />
+    );
   }
 
   // =========================================
@@ -97,10 +94,7 @@ const ProtectedRoute = ({
     const hasAllowedRole =
       roles.includes(activeRole);
 
-    if (
-      !hasAllowedRole &&
-      activeRole !== "Admin"
-    ) {
+    if (!hasAllowedRole) {
       return (
         <Navigate
           to="/unauthorized"
@@ -115,8 +109,7 @@ const ProtectedRoute = ({
   // =========================================
   if (
     permission &&
-    !hasPermission(permission) &&
-    activeRole !== "Admin"
+    !hasPermission(permission)
   ) {
     return (
       <Navigate
@@ -150,11 +143,6 @@ export const AppRoutes = () => {
         element={<Register />}
       />
 
-      <Route
-        path="/forgot-password"
-        element={<ForgotPassword />}
-      />
-
       {/* =========================================
           PROTECTED APPLICATION
           DashboardLayout wraps all logged-in pages
@@ -174,12 +162,31 @@ export const AppRoutes = () => {
 
         <Route
           path="/dashboard"
-          element={<Dashboard />}
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "Institution Admin",
+                "NAAC Coordinator",
+                "Committee Member",
+                "Dept. Coordinator",
+                "Reviewer",
+                "Data Approver",
+                "Principal / Director",
+              ]}
+            >
+              <Dashboard />
+            </ProtectedRoute>
+          }
         />
 
         <Route
           path="/admin-dashboard"
-          element={<Dashboard />}
+          element={
+            <ProtectedRoute role="Admin">
+              <Dashboard />
+            </ProtectedRoute>
+          }
         />
 
         {/* =========================================
@@ -231,6 +238,9 @@ export const AppRoutes = () => {
               roles={[
                 "Admin",
                 "Institution Admin",
+                "NAAC Coordinator",
+                "Dept. Coordinator",
+                "Principal / Director",
               ]}
             >
               <Departments />
@@ -244,7 +254,18 @@ export const AppRoutes = () => {
 
         <Route
           path="/criteria"
-          element={<Criteria />}
+          element={
+            <ProtectedRoute
+              roles={[
+                "NAAC Coordinator",
+                "Committee Member",
+                "Dept. Coordinator",
+                "Principal / Director",
+              ]}
+            >
+              <Criteria />
+            </ProtectedRoute>
+          }
         />
 
         {/* =========================================
@@ -253,7 +274,18 @@ export const AppRoutes = () => {
 
         <Route
           path="/criteria/:criterionId"
-          element={<CriterionDetail />}
+          element={
+            <ProtectedRoute
+              roles={[
+                "NAAC Coordinator",
+                "Committee Member",
+                "Dept. Coordinator",
+                "Principal / Director",
+              ]}
+            >
+              <CriterionDetail />
+            </ProtectedRoute>
+          }
         />
 
         {/* =========================================
@@ -262,7 +294,18 @@ export const AppRoutes = () => {
 
         <Route
           path="/criteria/:criterionId/metrics/:metricId"
-          element={<MetricDetail />}
+          element={
+            <ProtectedRoute
+              roles={[
+                "NAAC Coordinator",
+                "Committee Member",
+                "Dept. Coordinator",
+                "Principal / Director",
+              ]}
+            >
+              <MetricDetail />
+            </ProtectedRoute>
+          }
         />
 
         {/* =========================================
@@ -271,7 +314,16 @@ export const AppRoutes = () => {
 
         <Route
           path="/criteria/:criterionId/metrics/:metricId/submit"
-          element={<MetricSubmission />}
+          element={
+            <ProtectedRoute
+              roles={[
+                "NAAC Coordinator",
+                "Dept. Coordinator",
+              ]}
+            >
+              <MetricSubmission />
+            </ProtectedRoute>
+          }
         />
 
         {/* =========================================
@@ -280,12 +332,49 @@ export const AppRoutes = () => {
 
         <Route
           path="/documents"
-          element={<Documents />}
+          element={
+            <ProtectedRoute
+              roles={[
+                "NAAC Coordinator",
+                "Dept. Coordinator",
+              ]}
+            >
+              <Documents />
+            </ProtectedRoute>
+          }
         />
 
         <Route
           path="/documents/upload"
-          element={<EvidenceUpload />}
+          element={
+            <ProtectedRoute
+              roles={[
+                "NAAC Coordinator",
+                "Dept. Coordinator",
+              ]}
+            >
+              <EvidenceUpload />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =========================================
+            ACCREDITATION CYCLES
+        ========================================= */}
+
+        <Route
+          path="/accreditation-cycles"
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "NAAC Coordinator",
+                "Principal / Director",
+              ]}
+            >
+              <AccreditationCycles />
+            </ProtectedRoute>
+          }
         />
 
         {/* =========================================
@@ -293,17 +382,51 @@ export const AppRoutes = () => {
         ========================================= */}
 
         <Route
-          path="/submissions"
-          element={<Submissions />}
+          path="/submissions/new"
+          element={
+            <ProtectedRoute
+              roles={[
+                "NAAC Coordinator",
+                "Dept. Coordinator",
+              ]}
+            >
+              <NewSubmission />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================================
-            REVIEW
-        ========================================= */}
+        <Route
+          path="/submissions/:id"
+          element={
+            <ProtectedRoute
+              roles={[
+                "NAAC Coordinator",
+                "Committee Member",
+                "Dept. Coordinator",
+                "Data Approver",
+                "Principal / Director",
+              ]}
+            >
+              <SubmissionDetail />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
-          path="/review"
-          element={<Review />}
+          path="/submissions"
+          element={
+            <ProtectedRoute
+              roles={[
+                "NAAC Coordinator",
+                "Committee Member",
+                "Dept. Coordinator",
+                "Data Approver",
+                "Principal / Director",
+              ]}
+            >
+              <Submissions />
+            </ProtectedRoute>
+          }
         />
 
         {/* =========================================
@@ -352,9 +475,7 @@ export const AppRoutes = () => {
             <ProtectedRoute
               roles={[
                 "Admin",
-                "Institution Admin",
                 "NAAC Coordinator",
-                "Principal / Director",
               ]}
             >
               <CommitteeList />
@@ -372,9 +493,7 @@ export const AppRoutes = () => {
             <ProtectedRoute
               roles={[
                 "Admin",
-                "Institution Admin",
                 "NAAC Coordinator",
-                "Principal / Director",
               ]}
             >
               <CommitteeForm />
@@ -394,9 +513,7 @@ export const AppRoutes = () => {
             <ProtectedRoute
               roles={[
                 "Admin",
-                "Institution Admin",
                 "NAAC Coordinator",
-                "Principal / Director",
               ]}
             >
               <CommitteeForm />
@@ -404,13 +521,18 @@ export const AppRoutes = () => {
           }
         />
         <Route
-           path="/committees/:id/members"
-           element={
-             <ProtectedRoute role="NAAC Coordinator">
-          <CommitteeMembers />
-             </ProtectedRoute>
-                  }
-          />
+          path="/committees/:id/members"
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "NAAC Coordinator",
+              ]}
+            >
+              <CommitteeMembers />
+            </ProtectedRoute>
+          }
+        />
 
         {/* =========================================
             REPORTS
@@ -418,7 +540,34 @@ export const AppRoutes = () => {
 
         <Route
           path="/reports"
-          element={<Reports />}
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "NAAC Coordinator",
+                "Data Approver",
+                "Principal / Director",
+              ]}
+            >
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/audit-logs"
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "Institution Admin",
+                "NAAC Coordinator",
+                "Principal / Director",
+              ]}
+            >
+              <AuditLogs />
+            </ProtectedRoute>
+          }
         />
 
         {/* =========================================
@@ -427,7 +576,22 @@ export const AppRoutes = () => {
 
         <Route
           path="/notifications"
-          element={<Notifications />}
+          element={
+            <ProtectedRoute
+              roles={[
+                "Admin",
+                "Institution Admin",
+                "NAAC Coordinator",
+                "Committee Member",
+                "Dept. Coordinator",
+                "Reviewer",
+                "Data Approver",
+                "Principal / Director",
+              ]}
+            >
+              <Notifications />
+            </ProtectedRoute>
+          }
         />
 
         {/* =========================================
@@ -436,7 +600,16 @@ export const AppRoutes = () => {
 
         <Route
           path="/institution"
-          element={<Institution />}
+          element={
+            <ProtectedRoute
+              roles={[
+                "Institution Admin",
+                "Principal / Director",
+              ]}
+            >
+              <Institution />
+            </ProtectedRoute>
+          }
         />
 
         {/* =========================================

@@ -17,16 +17,20 @@ import {
 } from "react-router-dom";
 
 import criteriaService from "../services/criteriaService";
+import accreditationCycleService, {
+  OFFICIAL_WORKING_CATALOGUE_MESSAGE,
+  isOfficialCycleCatalog,
+  pickActiveCycle,
+} from "../services/accreditationCycleService";
 import submissionService from "../services/submissionService";
 
 // ============================================================
 // CONSTANTS
 // ============================================================
 
-const EDITABLE_STATUSES = [
+const SUBMITTABLE_STATUSES = [
   "draft",
   "changes requested",
-  "resubmitted",
 ];
 
 // ============================================================
@@ -39,8 +43,8 @@ const normalizeText = (value) => {
     .toLowerCase();
 };
 
-const isEditableStatus = (status) => {
-  return EDITABLE_STATUSES.includes(
+const canSubmitForReview = (status) => {
+  return SUBMITTABLE_STATUSES.includes(
     normalizeText(status)
   );
 };
@@ -106,6 +110,14 @@ const MetricSubmission = () => {
         setLoading(true);
         setError("");
 
+        const cycles =
+          await accreditationCycleService.getCycles();
+        const activeCycle = pickActiveCycle(cycles);
+        if (isOfficialCycleCatalog(activeCycle)) {
+          setError(OFFICIAL_WORKING_CATALOGUE_MESSAGE);
+          return;
+        }
+
         const [
           metricsData,
           evidenceData,
@@ -133,6 +145,13 @@ const MetricSubmission = () => {
 
         if (!selectedMetric) {
           setError("Metric not found.");
+          return;
+        }
+
+        if (selectedMetric.catalog_kind === "OFFICIAL") {
+          setError(
+            "Official operational metrics cannot be submitted from the working-catalogue form. Use New Submission with the selected official cycle."
+          );
           return;
         }
 
@@ -330,7 +349,7 @@ const MetricSubmission = () => {
     }
 
     if (
-      !isEditableStatus(
+      !canSubmitForReview(
         submission.status
       )
     ) {
@@ -343,20 +362,33 @@ const MetricSubmission = () => {
     try {
       setSubmitting(true);
 
+      const normalizedStatus =
+        normalizeText(submission.status);
+
       const result =
-        await submissionService.submitSubmission(
-          submission.id
-        );
+        normalizedStatus ===
+        "changes requested"
+          ? await submissionService.resubmitSubmission(
+              submission.id
+            )
+          : await submissionService.submitSubmission(
+              submission.id
+            );
 
       console.log(
         "SUBMIT SUBMISSION RESPONSE:",
         result
       );
 
-      setSubmission(result);
+      setSubmission(
+        result?.submission || result
+      );
 
       setMessage(
-        `Submission #${submission.id} submitted for review.`
+        normalizedStatus ===
+        "changes requested"
+          ? `Submission #${submission.id} resubmitted for review.`
+          : `Submission #${submission.id} submitted for review.`
       );
     } catch (err) {
       console.error(
@@ -985,7 +1017,7 @@ const MetricSubmission = () => {
                 }
                 disabled={
                   submitting ||
-                  !isEditableStatus(
+                  !canSubmitForReview(
                     submission.status
                   )
                 }
@@ -995,7 +1027,7 @@ const MetricSubmission = () => {
                   borderRadius: "8px",
                   background:
                     submitting ||
-                    !isEditableStatus(
+                    !canSubmitForReview(
                       submission.status
                     )
                       ? "#cbd5e1"
@@ -1003,7 +1035,7 @@ const MetricSubmission = () => {
                   color: "#ffffff",
                   cursor:
                     submitting ||
-                    !isEditableStatus(
+                    !canSubmitForReview(
                       submission.status
                     )
                       ? "not-allowed"

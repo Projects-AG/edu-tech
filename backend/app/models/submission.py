@@ -66,6 +66,17 @@ class Submission(Base):
         index=True
     )
 
+    metric_id = Column(
+        Integer,
+        ForeignKey(
+            "metrics.id",
+            ondelete="SET NULL",
+            name="fk_submissions_metric_id",
+        ),
+        nullable=True,
+        index=True,
+    )
+
     status = Column(
         String(50),
         nullable=False,
