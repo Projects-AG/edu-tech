@@ -182,6 +182,19 @@ def require_cycle_view(
     )
 
 
+# ADD THE NEW HELPER HERE
+def require_cycle_manager_role(
+    db: Session,
+    current_user: User,
+) -> None:
+    role_name = get_role_name(db, current_user.role_id)
+
+    if role_name not in {"Admin", "NAAC Coordinator"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Admins and NAAC Coordinators can manage accreditation cycles",
+        )
+
 # ============================================================
 # CREATE ACCREDITATION CYCLE
 # ============================================================
@@ -201,6 +214,7 @@ def create_accreditation_cycle(
     ),
     db: Session = Depends(get_db)
 ):
+    require_cycle_manager_role(db, current_user)
 
     # --------------------------------------------------------
     # 1. Check whether institution exists
@@ -369,6 +383,8 @@ def update_accreditation_cycle(
     db: Session = Depends(get_db)
 ):
 
+    require_cycle_manager_role(db, current_user)
+
     # --------------------------------------------------------
     # 1. Find cycle
     # --------------------------------------------------------
@@ -508,6 +524,8 @@ def delete_accreditation_cycle(
     db: Session = Depends(get_db)
 ):
 
+    require_cycle_manager_role(db, current_user)
+
     # --------------------------------------------------------
     # 1. Find cycle
     # --------------------------------------------------------
@@ -599,6 +617,8 @@ def replace_cycle_applicable_metrics_endpoint(
     ),
     db: Session = Depends(get_db),
 ):
+
+    require_cycle_manager_role(db, current_user)
     cycle = get_cycle_or_404(db, cycle_id)
     ensure_cycle_institution_access(db, current_user, cycle)
     items = [
@@ -629,6 +649,8 @@ def add_cycle_applicable_metric_endpoint(
     ),
     db: Session = Depends(get_db),
 ):
+
+    require_cycle_manager_role(db, current_user)
     cycle = get_cycle_or_404(db, cycle_id)
     ensure_cycle_institution_access(db, current_user, cycle)
     return add_cycle_applicable_metric(
@@ -655,6 +677,8 @@ def delete_cycle_applicable_metric_endpoint(
     ),
     db: Session = Depends(get_db),
 ):
+
+    require_cycle_manager_role(db, current_user)
     cycle = get_cycle_or_404(db, cycle_id)
     ensure_cycle_institution_access(db, current_user, cycle)
     remove_cycle_applicable_metric(

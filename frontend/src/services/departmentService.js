@@ -25,7 +25,7 @@ const parseList = (data) => {
     return data.data;
   }
 
-  return [];
+  throw new Error("The departments API returned an invalid response.");
 };
 
 export const departmentService = {

@@ -25,8 +25,13 @@ class CriterionUpdate(BaseModel):
 
 class CriterionResponse(CriterionBase):
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    weightage: Optional[int] = None
+    framework_criterion_id: Optional[int] = None
+    operational_criterion_id: Optional[int] = None
+    framework_code: Optional[str] = None
+    framework_name: Optional[str] = None
     status: Optional[str] = None
     total_submissions: Optional[int] = None
     approved_submissions: Optional[int] = None

@@ -77,31 +77,32 @@ export const SubmissionDetail = () => {
       setLoading(true);
       setError("");
       const data = await submissionService.getSubmission(id);
-      setSubmission(data);
       const [docs, history] = await Promise.all([
-        documentService.getDocuments(id).catch(() => []),
-        submissionService.getReviews(id).catch(() => []),
+        documentService.getDocuments(id),
+        submissionService.getReviews(id),
       ]);
-      setDocuments(Array.isArray(docs) ? docs : []);
-      setReviews(Array.isArray(history) ? history : []);
-      if (data.cycle_id) {
-        try {
-          const cycleData = await accreditationCycleService.getCycle(
-            data.cycle_id
-          );
-          setCycle(cycleData);
-        } catch {
-          setCycle({ id: data.cycle_id });
-        }
-      } else {
-        setCycle(null);
+      if (!Array.isArray(docs) || !Array.isArray(history)) {
+        throw new Error("The submission details API returned an invalid response.");
       }
+      const cycleData = data.cycle_id
+        ? await accreditationCycleService.getCycle(data.cycle_id)
+        : null;
+
+      setSubmission(data);
+      setDocuments(docs);
+      setReviews(history);
+      setCycle(cycleData);
     } catch (err) {
       setError(
-        err?.response?.data?.detail ||
+        (typeof err?.response?.data?.detail === "string" &&
+          err.response.data.detail) ||
+          err?.message ||
           "Unable to load this submission."
       );
       setSubmission(null);
+      setDocuments([]);
+      setReviews([]);
+      setCycle(null);
     } finally {
       setLoading(false);
     }
@@ -160,6 +161,24 @@ export const SubmissionDetail = () => {
           <div style={{ color: "#b91c1c" }}>
             {error || "Submission not found."}
           </div>
+          {error ? (
+            <button
+              type="button"
+              onClick={load}
+              style={{
+                marginTop: "12px",
+                padding: "8px 14px",
+                border: "1px solid #fecaca",
+                borderRadius: "7px",
+                background: "#ffffff",
+                color: "#991b1b",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Retry
+            </button>
+          ) : null}
         </div>
       ) : (
         <>

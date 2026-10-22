@@ -25,7 +25,7 @@ class CommitteeResponse(BaseModel):
     chairperson: str | None = None
     status: str
     member_count: int = 0
-    criteria_count: int = 0
+    criteria_count: int | None = None
     created_by: int | None = None
     created_at: datetime
     updated_at: datetime

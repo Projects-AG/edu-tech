@@ -2,7 +2,16 @@ import unittest
 import uuid
 
 from app.db.database import SessionLocal
-from app.models import AccreditationCycle, Institution, Metric, Submission
+from app.models import (
+    AccreditationCycle,
+    Criterion,
+    Document,
+    Institution,
+    Metric,
+    Section,
+    Submission,
+    User,
+)
 from app.models.cycle_applicable_metric import CycleApplicableMetric
 from app.models.metric import CATALOG_KIND_OFFICIAL, CATALOG_KIND_WORKING
 from app.models.naac_framework import FrameworkMetric, NaacFramework
@@ -31,6 +40,8 @@ class CycleFrameworkBindingTests(unittest.TestCase):
         self.db = SessionLocal()
         self.created_cycle_ids = []
         self.created_institution_ids = []
+        self.created_submission_ids = []
+        self.created_document_ids = []
         self.autonomous = (
             self.db.query(NaacFramework)
             .filter(NaacFramework.code == CODE_RAF_AUTONOMOUS)
@@ -53,6 +64,14 @@ class CycleFrameworkBindingTests(unittest.TestCase):
         )
 
     def tearDown(self):
+        if self.created_document_ids:
+            self.db.query(Document).filter(
+                Document.id.in_(self.created_document_ids)
+            ).delete(synchronize_session=False)
+        if self.created_submission_ids:
+            self.db.query(Submission).filter(
+                Submission.id.in_(self.created_submission_ids)
+            ).delete(synchronize_session=False)
         if self.created_cycle_ids:
             self.db.query(CycleApplicableMetric).filter(
                 CycleApplicableMetric.cycle_id.in_(self.created_cycle_ids)
@@ -87,6 +106,20 @@ class CycleFrameworkBindingTests(unittest.TestCase):
     def _track(self, cycle_id):
         self.created_cycle_ids.append(cycle_id)
         return cycle_id
+
+    def _make_cycle(self, institution, framework):
+        cycle = AccreditationCycle(
+            institution_id=institution.id,
+            name=f"Criteria scope {uuid.uuid4().hex[:8]}",
+            code=f"CRIT-{uuid.uuid4().hex[:10]}",
+            status="Draft",
+            framework_id=framework.id,
+        )
+        self.db.add(cycle)
+        self.db.commit()
+        self.db.refresh(cycle)
+        self._track(cycle.id)
+        return cycle
 
     def test_new_cycle_can_bind_autonomous_and_retrieve_official_metrics(self):
         code = f"PHASE2-{uuid.uuid4().hex[:10]}"
@@ -171,6 +204,174 @@ class CycleFrameworkBindingTests(unittest.TestCase):
                 json={"status": "Active"},
             )
             self.assertEqual(blocked.status_code, 400)
+
+    def test_criteria_use_selected_framework_cycle_and_institution_scope(self):
+        internal_institution = self._make_institution("OTHER", self.internal)
+        autonomous_institution = self._make_institution(
+            "AUTONOMOUS_COLLEGE",
+            self.autonomous,
+        )
+        internal_cycle = self._make_cycle(internal_institution, self.internal)
+        autonomous_cycle = self._make_cycle(
+            autonomous_institution,
+            self.autonomous,
+        )
+
+        with api_client() as client:
+            login = _login(client, "admin@test.com", "admin123", "Admin")
+            if login.status_code != 200:
+                self.skipTest("seed admin login is not available")
+            headers = {
+                "Authorization": "Bearer " + login.json()["access_token"],
+            }
+
+            internal_response = client.get(
+                "/criteria",
+                headers=headers,
+                params={"cycle_id": internal_cycle.id},
+            )
+            autonomous_response = client.get(
+                "/criteria",
+                headers=headers,
+                params={"cycle_id": autonomous_cycle.id},
+            )
+            self.assertEqual(internal_response.status_code, 200)
+            self.assertEqual(autonomous_response.status_code, 200)
+            internal_rows = internal_response.json()
+            autonomous_rows = autonomous_response.json()
+            self.assertEqual(
+                [item["number"] for item in internal_rows],
+                [f"C{number}" for number in range(1, 8)],
+            )
+            self.assertEqual(
+                [item["number"] for item in autonomous_rows],
+                [f"C{number}" for number in range(1, 8)],
+            )
+            self.assertTrue(
+                all(item["cycle_id"] == internal_cycle.id for item in internal_rows)
+            )
+            self.assertTrue(
+                all(
+                    item["cycle_id"] == autonomous_cycle.id
+                    for item in autonomous_rows
+                )
+            )
+            self.assertEqual(
+                sum(item["total_metrics"] for item in autonomous_rows),
+                0,
+            )
+
+            mapped_metric = next(
+                metric
+                for _identity, metric in official_operational_metric_rows(
+                    self.db,
+                    self.autonomous,
+                )
+                if metric.code == "1.1.1"
+            )
+            self.db.add(
+                CycleApplicableMetric(
+                    cycle_id=autonomous_cycle.id,
+                    metric_id=mapped_metric.id,
+                    required=True,
+                )
+            )
+            self.db.commit()
+            mapped_response = client.get(
+                "/criteria",
+                headers=headers,
+                params={"cycle_id": autonomous_cycle.id},
+            )
+            self.assertEqual(mapped_response.status_code, 200)
+            self.assertEqual(
+                sum(item["total_metrics"] for item in mapped_response.json()),
+                1,
+            )
+            operational_section = (
+                self.db.query(Section)
+                .filter(Section.id == mapped_metric.section_id)
+                .one()
+            )
+            operational_criterion = (
+                self.db.query(Criterion)
+                .filter(Criterion.id == operational_section.criterion_id)
+                .one()
+            )
+            admin_user = (
+                self.db.query(User)
+                .filter(User.email == "admin@test.com")
+                .one()
+            )
+            submission = Submission(
+                institution_id=autonomous_institution.id,
+                cycle_id=autonomous_cycle.id,
+                criterion_id=operational_criterion.id,
+                user_id=admin_user.id,
+                title="Selected-cycle criterion progress test",
+                metric_code=mapped_metric.code,
+                metric_id=mapped_metric.id,
+                status="Final Submitted",
+            )
+            self.db.add(submission)
+            self.db.commit()
+            self.db.refresh(submission)
+            self.created_submission_ids.append(submission.id)
+            document = Document(
+                institution_id=autonomous_institution.id,
+                submission_id=submission.id,
+                uploaded_by=admin_user.id,
+                title="Selected-cycle evidence test",
+                file_path="test/selected-cycle-evidence.pdf",
+                file_type="application/pdf",
+                file_size=1,
+                status="Uploaded",
+            )
+            self.db.add(document)
+            self.db.commit()
+            self.db.refresh(document)
+            self.created_document_ids.append(document.id)
+            populated_response = client.get(
+                "/criteria",
+                headers=headers,
+                params={"cycle_id": autonomous_cycle.id},
+            )
+            self.assertEqual(populated_response.status_code, 200)
+            populated_criterion = next(
+                item
+                for item in populated_response.json()
+                if item["number"] == operational_criterion.number
+            )
+            self.assertEqual(populated_criterion["total_submissions"], 1)
+            self.assertEqual(populated_criterion["total_evidence"], 1)
+            self.assertEqual(populated_criterion["completion_percentage"], 100)
+
+            foreign_institution = self._make_institution(
+                "AUTONOMOUS_COLLEGE",
+                self.autonomous,
+            )
+            foreign_cycle = self._make_cycle(
+                foreign_institution,
+                self.autonomous,
+            )
+            coordinator_login = _login(
+                client,
+                "coordinator@test.com",
+                "Coordinator@123",
+                "NAAC Coordinator",
+            )
+            if coordinator_login.status_code != 200:
+                self.skipTest("seed coordinator login is not available")
+            coordinator_headers = {
+                "Authorization": (
+                    "Bearer " + coordinator_login.json()["access_token"]
+                ),
+            }
+            forbidden = client.get(
+                "/criteria",
+                headers=coordinator_headers,
+                params={"cycle_id": foreign_cycle.id},
+            )
+            self.assertEqual(forbidden.status_code, 403)
 
     def test_invalid_and_ineligible_frameworks_are_rejected(self):
         with api_client() as client:

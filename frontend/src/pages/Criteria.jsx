@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import criteriaService from "../services/criteriaService";
+import accreditationCycleService, {
+  pickActiveCycle,
+} from "../services/accreditationCycleService";
 
 import DataTable from "../components/common/DataTable";
 import PageHeader from "../components/common/PageHeader";
@@ -22,6 +25,11 @@ const Criteria = () => {
   const { user } = useAuth();
 
   const [criteria, setCriteria] = useState([]);
+  const [cycles, setCycles] = useState([]);
+  const [selectedCycleId, setSelectedCycleId] = useState("");
+  const [cyclesLoaded, setCyclesLoaded] = useState(false);
+  const [cycleLoadFailed, setCycleLoadFailed] = useState(false);
+  const [cycleReloadToken, setCycleReloadToken] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -46,52 +54,97 @@ const Criteria = () => {
   // LOAD CRITERIA
   // ==========================================================
 
+  const loadCriteria = useCallback(async (cycleId) => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await criteriaService.getCriteria(cycleId);
+      if (!Array.isArray(response)) {
+        throw new Error("The criteria API returned an invalid response.");
+      }
+      const backendCriteria = response;
+      const formattedCriteria = backendCriteria.map((item) => ({
+        id: item.framework_criterion_id ?? item.id,
+        operationalCriterionId: item.operational_criterion_id ?? null,
+        canViewCriterion: item.framework_criterion_id
+          ? Boolean(item.operational_criterion_id)
+          : true,
+        number: item.number || item.code || "-",
+        title: item.title || "Untitled criterion",
+        score: item.weightage ?? null,
+        maxScore: item.max_score ?? item.maxScore ?? item.weightage ?? null,
+        status: item.status || "Not Started",
+        weighted: Number(item.completion_percentage ?? 0),
+        totalSubmissions: item.total_submissions ?? 0,
+        approvedSubmissions: item.approved_submissions ?? 0,
+        totalEvidence: item.total_evidence ?? 0,
+        original: item,
+      }));
+
+      setCriteria(formattedCriteria);
+    } catch (err) {
+      console.error(
+        "CRITERIA LOAD ERROR:",
+        err?.response?.data || err
+      );
+      setCriteria([]);
+      setError(
+        err?.response?.data?.detail ||
+          "Unable to load NAAC criteria."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const loadCriteria = async () => {
+    let cancelled = false;
+    const loadCycles = async () => {
+      setCyclesLoaded(false);
+      setCycleLoadFailed(false);
+      setLoading(true);
+      setError("");
       try {
-        setLoading(true);
-        setError("");
-
-        const response =
-          await criteriaService.getCriteria();
-
-        const backendCriteria =
-          Array.isArray(response)
-            ? response
-            : [];
-
-        const formattedCriteria = backendCriteria.map((item) => ({
-          id: item.id,
-          number: item.number || item.code || "-",
-          title: item.title || "Untitled criterion",
-          score: item.weightage ?? 0,
-          maxScore: item.max_score ?? item.maxScore ?? item.weightage ?? 0,
-          status: item.status || "Not Started",
-          weighted: Number(item.completion_percentage ?? 0),
-          totalSubmissions: item.total_submissions ?? 0,
-          approvedSubmissions: item.approved_submissions ?? 0,
-          totalEvidence: item.total_evidence ?? 0,
-          original: item,
-        }));
-
-        setCriteria(formattedCriteria);
+        const response = await accreditationCycleService.getCycles();
+        if (cancelled) return;
+        setCycles(response);
+        const activeCycle = pickActiveCycle(response);
+        setSelectedCycleId(activeCycle ? String(activeCycle.id) : "");
+        setCyclesLoaded(true);
       } catch (err) {
+        if (cancelled) return;
         console.error(
-          "CRITERIA LOAD ERROR:",
+          "ACCREDITATION CYCLES LOAD ERROR:",
           err?.response?.data || err
         );
-
+        setCycles([]);
+        setSelectedCycleId("");
+        setCycleLoadFailed(true);
+        setCyclesLoaded(true);
         setError(
           err?.response?.data?.detail ||
-            "Unable to load NAAC criteria."
+            "Unable to load accreditation cycles."
         );
-      } finally {
         setLoading(false);
       }
     };
+    loadCycles();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.institution_id, cycleReloadToken]);
 
-    loadCriteria();
-  }, []);
+  useEffect(() => {
+    if (!cyclesLoaded) return;
+    if (!selectedCycleId) {
+      setCriteria([]);
+      if (!cycleLoadFailed) setError("");
+      setLoading(false);
+      return;
+    }
+    loadCriteria(Number(selectedCycleId));
+  }, [cyclesLoaded, selectedCycleId, cycleLoadFailed, loadCriteria]);
 
   // ==========================================================
   // OPEN CRITERION
@@ -105,7 +158,7 @@ const Criteria = () => {
     }
 
     navigate(
-      `/criteria/${criterionId}`
+      `/criteria/${criterionId}?cycle_id=${selectedCycleId}`
     );
   };
 
@@ -154,8 +207,8 @@ const Criteria = () => {
         row
       ) => (
         <span>
-          {value ?? 100} /{" "}
-          {row.maxScore ?? 100}
+          {value ?? "-"} /{" "}
+          {row.maxScore ?? "-"}
         </span>
       ),
     },
@@ -276,29 +329,28 @@ const Criteria = () => {
         row
       ) => (
         <button
+          type="button"
+          disabled={!row.canViewCriterion}
           onClick={() =>
             handleViewCriterion(
-              row.id
+              row.operationalCriterionId || (row.canViewCriterion ? row.id : null)
             )
           }
           style={{
             border:
               "1px solid #bfdbfe",
-            background:
-              "#eff6ff",
-            color:
-              "#2563eb",
+            background: row.canViewCriterion ? "#eff6ff" : "#f1f5f9",
+            color: row.canViewCriterion ? "#2563eb" : "#94a3b8",
             borderRadius:
               "7px",
             padding:
               "7px 13px",
-            cursor:
-              "pointer",
+            cursor: row.canViewCriterion ? "pointer" : "not-allowed",
             fontWeight:
               600,
           }}
         >
-          View →
+          {row.canViewCriterion ? "View →" : "Unavailable"}
         </button>
       ),
     },
@@ -310,8 +362,8 @@ const Criteria = () => {
 
   const description =
     isDeptCoordinator
-      ? "Select a criterion to view its metrics and upload the required evidence."
-      : "Manage and track metrics across Criteria 1 through 10.";
+      ? "Select a criterion from the current list to view its metrics and upload the required evidence."
+      : "Manage and track metrics across criteria available for your institution and accreditation cycle.";
 
   // ==========================================================
   // ERROR
@@ -344,6 +396,28 @@ const Criteria = () => {
           }}
         >
           {error}
+          <div>
+            <button
+              type="button"
+              onClick={() =>
+                cycleLoadFailed
+                  ? setCycleReloadToken((token) => token + 1)
+                  : loadCriteria(Number(selectedCycleId))
+              }
+              style={{
+                marginTop: "12px",
+                padding: "8px 14px",
+                border: "1px solid #fecaca",
+                borderRadius: "7px",
+                background: "#ffffff",
+                color: "#991b1b",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -364,6 +438,31 @@ const Criteria = () => {
         title="NAAC Criteria"
         description={description}
       />
+
+      <div style={{ marginBottom: "18px" }}>
+        <label
+          htmlFor="criteria-cycle"
+          style={{ display: "block", marginBottom: "6px", fontWeight: 600 }}
+        >
+          Accreditation cycle
+        </label>
+        <select
+          id="criteria-cycle"
+          value={selectedCycleId}
+          disabled={!cyclesLoaded || cycles.length === 0 || loading}
+          onChange={(event) => setSelectedCycleId(event.target.value)}
+          style={{ minWidth: "280px", padding: "9px 12px" }}
+        >
+          {cycles.length === 0 ? (
+            <option value="">No accreditation cycles available</option>
+          ) : null}
+          {cycles.map((cycle) => (
+            <option key={cycle.id} value={String(cycle.id)}>
+              {cycle.name} — {cycle.framework_name || "Legacy working catalogue"}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {!loading && criteria[0]?.original?.uses_catalog_fallback ? (
         <div
@@ -416,10 +515,7 @@ const Criteria = () => {
                 "13px",
             }}
           >
-            Select one of the 10 NAAC
-            criteria to view its metrics,
-            requirements and evidence
-            submission options.
+            Select a criterion to view its metrics, requirements and evidence submission options.
           </div>
         </div>
       )}
@@ -482,6 +578,18 @@ const Criteria = () => {
             "20px",
         }}
       >
+        {!loading && !error && (
+          <p
+            aria-live="polite"
+            style={{
+              margin: "0 0 14px",
+              color: "#64748b",
+              fontSize: "13px",
+            }}
+          >
+            {criteria.length} {criteria.length === 1 ? "criterion" : "criteria"} returned for the current scope.
+          </p>
+        )}
         {loading ? (
           <div
             style={{
@@ -504,7 +612,11 @@ const Criteria = () => {
               criteria
             }
             keyField="id"
-            emptyMessage="No NAAC criteria found."
+            emptyMessage={
+              cycles.length === 0
+                ? "No accreditation cycle is available for this institution."
+                : "No criteria are defined for the selected framework."
+            }
           />
         )}
       </div>

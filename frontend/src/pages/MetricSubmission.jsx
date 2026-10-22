@@ -122,7 +122,7 @@ const MetricSubmission = () => {
           metricsData,
           evidenceData,
         ] = await Promise.all([
-          criteriaService.getMetrics(),
+          criteriaService.getMetrics(activeCycle?.id),
           criteriaService.getEvidenceRequirements(),
         ]);
 

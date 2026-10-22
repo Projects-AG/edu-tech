@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FileText, CheckCircle, PieChart, ShieldAlert, Download } from "lucide-react";
+import { FileText, CheckCircle, PieChart, ShieldAlert, Download, RefreshCw } from "lucide-react";
 import reportService from "../services/reportService";
 import PageHeader from "../components/common/PageHeader";
 import {
@@ -121,13 +121,18 @@ export const Reports = () => {
         title="Accreditation Reports"
         description={
           summaryData?.cycle
-            ? `Live progress for ${summaryData.cycle.name}${
+            ? `Database-backed progress for ${summaryData.cycle.name}${
                 summaryData.cycle.academic_period
                   ? ` (${summaryData.cycle.academic_period})`
                   : ""
               }.`
-            : "Live institutional progress from current submissions, approvals, and evidence."
+            : "Database-backed institutional progress from submissions, approvals, and evidence."
         }
+        primaryAction={{
+          label: "Refresh",
+          icon: RefreshCw,
+          onClick: loadReports,
+        }}
       />
 
       {loading ? (

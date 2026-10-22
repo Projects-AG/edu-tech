@@ -449,7 +449,12 @@ def _compute_catalog_fallback_progress(
     submissions: list[Submission],
     documents: list[Document],
 ) -> dict:
-    criteria = db.query(Criterion).order_by(Criterion.id).all()
+    criteria_query = db.query(Criterion)
+    if cycle:
+        criteria_query = criteria_query.filter(
+            (Criterion.cycle_id == cycle.id) | (Criterion.cycle_id.is_(None))
+        )
+    criteria = criteria_query.order_by(Criterion.id).all()
     sections = db.query(Section).all()
     metrics = (
         db.query(Metric)
@@ -757,16 +762,27 @@ def build_progress(
     db: Session,
     institution_id: int | None = None,
     department_id: int | None = None,
+    cycle: AccreditationCycle | None = None,
 ) -> dict:
-    cycle, configured, applicable = resolve_progress_cycle(
-        db,
-        institution_id,
-    )
-    submissions = _scoped_submissions(
+    if cycle is None:
+        cycle, configured, applicable = resolve_progress_cycle(
+            db,
+            institution_id,
+        )
+    else:
+        applicable = load_applicable_metric_catalog(db, cycle.id)
+        configured = bool(applicable)
+
+    submissions_query = _scoped_submissions(
         db,
         institution_id,
         department_id,
-    ).all()
+    )
+    if cycle:
+        submissions_query = submissions_query.filter(
+            Submission.cycle_id == cycle.id
+        )
+    submissions = submissions_query.all()
     documents = _scoped_document_query(db, institution_id).all()
     if department_id:
         submission_ids = {item.id for item in submissions}
@@ -832,11 +848,13 @@ def compute_criteria_progress(
     db: Session,
     institution_id: int | None = None,
     department_id: int | None = None,
+    cycle: AccreditationCycle | None = None,
 ) -> list[dict]:
     return build_progress(
         db,
         institution_id,
         department_id,
+        cycle,
     )["criteria"]
 
 

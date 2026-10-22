@@ -86,7 +86,7 @@ export const CommitteeMemberView = () => {
       </section>
 
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
-        <StatCard icon={Award} label="Total Criteria" value={stats.total_criteria ?? 0} color="blue" />
+        <StatCard icon={Award} label="Applicable Criteria" value={stats.total_criteria ?? 0} color="blue" />
         <StatCard icon={UploadCloud} label="Documents Collected" value={stats.documents_collected ?? 0} color="green" />
         <StatCard icon={FileText} label="Total Submissions" value={stats.total_submissions ?? 0} color="purple" />
         <StatCard icon={Clock} label="Pending Items" value={stats.pending_items ?? 0} color="orange" />

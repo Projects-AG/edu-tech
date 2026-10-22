@@ -24,20 +24,20 @@ export const InstitutionAdminView = () => {
       setInstitution(institutionResponse.data);
 
       const departmentsResponse = await api.get("/departments");
-      const departments = Array.isArray(departmentsResponse.data)
-        ? departmentsResponse.data
-        : [];
+      if (!Array.isArray(departmentsResponse.data)) {
+        throw new Error("The departments API returned an invalid response.");
+      }
+      const departments = departmentsResponse.data;
       setDepartmentCount(departments.length);
 
-      try {
-        const usersResponse = await api.get("/admin/users");
-        const users = Array.isArray(usersResponse.data)
-          ? usersResponse.data
-          : usersResponse.data?.users || [];
-        setUserCount(users.length);
-      } catch {
-        setUserCount(null);
+      const usersResponse = await api.get("/admin/users");
+      const users = Array.isArray(usersResponse.data)
+        ? usersResponse.data
+        : usersResponse.data?.users;
+      if (!Array.isArray(users)) {
+        throw new Error("The users API returned an invalid response.");
       }
+      setUserCount(users.length);
     } catch (err) {
       setInstitution(null);
       setDepartmentCount(0);

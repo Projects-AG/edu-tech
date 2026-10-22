@@ -4,8 +4,10 @@ const criteriaService = {
   // ==========================================
   // GET ALL CRITERIA
   // ==========================================
-  getCriteria: async () => {
-    const response = await api.get("/criteria");
+  getCriteria: async (cycleId) => {
+    const response = await api.get("/criteria", {
+      params: cycleId ? { cycle_id: cycleId } : {},
+    });
     return response.data;
   },
 

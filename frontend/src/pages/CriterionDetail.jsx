@@ -6,6 +6,7 @@ import React, {
 import {
   useNavigate,
   useParams,
+  useSearchParams,
 } from "react-router-dom";
 
 import criteriaService from "../services/criteriaService";
@@ -74,6 +75,8 @@ const CriterionDetail = () => {
 
   const navigate =
     useNavigate();
+  const [searchParams] = useSearchParams();
+  const selectedCycleId = searchParams.get("cycle_id");
 
   const {
     user,
@@ -128,6 +131,11 @@ const CriterionDetail = () => {
   ] = useState("");
 
   const [
+    retryCount,
+    setRetryCount,
+  ] = useState(0);
+
+  const [
     officialCatalogMessage,
     setOfficialCatalogMessage,
   ] = useState("");
@@ -148,7 +156,9 @@ const CriterionDetail = () => {
           // --------------------------------------------------
 
           const criteria =
-            await criteriaService.getCriteria();
+            await criteriaService.getCriteria(
+              selectedCycleId ? Number(selectedCycleId) : undefined
+            );
 
           const selectedCriterion =
             Array.isArray(
@@ -157,7 +167,7 @@ const CriterionDetail = () => {
               ? criteria.find(
                   (item) =>
                     String(
-                      item.id
+                      item.operational_criterion_id ?? item.id
                     ) ===
                     String(
                       criterionId
@@ -183,32 +193,10 @@ const CriterionDetail = () => {
           // GET SECTIONS
           // --------------------------------------------------
 
-          let loadedSections =
-            [];
-
-          try {
-            const sectionResponse =
-              await criteriaService.getSections();
-
-            loadedSections =
-              Array.isArray(
-                sectionResponse
-              )
-                ? sectionResponse
-                : [];
-          } catch (
-            sectionError
-          ) {
-            console.warn(
-              "SECTIONS LOAD WARNING:",
-              sectionError
-                ?.response
-                ?.data ||
-                sectionError
-            );
-
-            loadedSections =
-              [];
+          const loadedSections =
+            await criteriaService.getSections();
+          if (!Array.isArray(loadedSections)) {
+            throw new Error("The sections API returned an invalid response.");
           }
 
           // --------------------------------------------------
@@ -233,7 +221,11 @@ const CriterionDetail = () => {
 
           const cycles =
             await accreditationCycleService.getCycles();
-          const activeCycle = pickActiveCycle(cycles);
+          const activeCycle = selectedCycleId
+            ? cycles.find(
+                (cycle) => String(cycle.id) === String(selectedCycleId)
+              )
+            : pickActiveCycle(cycles);
           if (isOfficialCycleCatalog(activeCycle)) {
             setOfficialCatalogMessage(
               OFFICIAL_WORKING_CATALOGUE_MESSAGE
@@ -248,14 +240,15 @@ const CriterionDetail = () => {
           // --------------------------------------------------
 
           const metricResponse =
-            await criteriaService.getMetrics();
+            await criteriaService.getMetrics(activeCycle?.id);
 
           const allMetrics =
-            Array.isArray(
-              metricResponse
-            )
+            Array.isArray(metricResponse)
               ? metricResponse
-              : [];
+              : null;
+          if (!allMetrics) {
+            throw new Error("The metrics API returned an invalid response.");
+          }
 
           // --------------------------------------------------
           // FILTER METRICS
@@ -371,6 +364,8 @@ const CriterionDetail = () => {
     loadData();
   }, [
     criterionId,
+    selectedCycleId,
+    retryCount,
   ]);
 
   // ==========================================================
@@ -437,6 +432,23 @@ const CriterionDetail = () => {
           {error ||
             "Criterion not found."}
         </h2>
+        {error ? (
+          <button
+            type="button"
+            onClick={() => setRetryCount((count) => count + 1)}
+            style={{
+              padding: "8px 14px",
+              border: "1px solid #bfdbfe",
+              borderRadius: "7px",
+              background: "#eff6ff",
+              color: "#1d4ed8",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Retry
+          </button>
+        ) : null}
       </div>
     );
   }

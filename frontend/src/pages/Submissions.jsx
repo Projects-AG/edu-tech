@@ -104,6 +104,9 @@ export const Submissions = () => {
       setLoadError("");
 
       const data = await submissionService.getSubmissions();
+      if (!Array.isArray(data)) {
+        throw new Error("The submissions API returned an invalid response.");
+      }
 
       console.log("SUBMISSIONS DATA:", data);
 
@@ -209,8 +212,12 @@ export const Submissions = () => {
           "SUBMISSIONS LOAD ERROR:",
           error?.response?.data || error
         );
-
-        setLoadError("");
+        setLoadError(
+          (typeof error?.response?.data?.detail === "string" &&
+            error.response.data.detail) ||
+            error?.message ||
+            "Unable to load submissions."
+        );
       }
     } finally {
       setLoading(false);
@@ -1176,6 +1183,23 @@ export const Submissions = () => {
             }}
           >
             {loadError}
+            <button
+              type="button"
+              onClick={loadSubmissions}
+              style={{
+                display: "block",
+                margin: "12px auto 0",
+                padding: "8px 14px",
+                border: "1px solid #fecaca",
+                borderRadius: "7px",
+                background: "#ffffff",
+                color: "#7f1d1d",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Retry
+            </button>
           </div>
         ) : (
           <DataTable

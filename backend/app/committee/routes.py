@@ -9,14 +9,16 @@ from app.db.database import engine
 from app.models import (
     Committee,
     CommitteeMember,
-    Criterion,
     Department,
     Document,
     Submission,
     User,
 )
 from app.services.audit_service import record_audit
-from app.services.report_service import PENDING_SUBMISSION_STATUSES
+from app.services.report_service import (
+    PENDING_SUBMISSION_STATUSES,
+    compute_criteria_progress,
+)
 from app.schemas.committee import (
     CommitteeAvailableUserResponse,
     CommitteeCreate,
@@ -149,7 +151,7 @@ def serialize_committee(
         "chairperson": committee.chairperson,
         "status": committee.status,
         "member_count": member_count,
-        "criteria_count": 0,
+        "criteria_count": None,
         "created_by": committee.created_by,
         "created_at": committee.created_at,
         "updated_at": committee.updated_at,
@@ -240,7 +242,13 @@ def committee_dashboard(
             Document.submission_id == Submission.id,
         ).filter(Submission.department_id == dept_id)
 
-    total_criteria = db.query(Criterion).count()
+    total_criteria = len(
+        compute_criteria_progress(
+            db,
+            institution_id=inst_id,
+            department_id=dept_id,
+        )
+    )
     documents_collected = doc_query.count()
     total_submissions = sub_query.count()
     pending_items = sub_query.filter(

@@ -49,7 +49,7 @@ const MetricDetail = () => {
         }
 
         const metrics =
-          await criteriaService.getMetrics();
+          await criteriaService.getMetrics(activeCycle?.id);
 
         // ------------------------------------------------------
         // 2. Find selected metric

@@ -468,7 +468,7 @@ const CommitteeList = () => {
                       >
                         <ClipboardList size={15} />
 
-                        {committee.criteriaCount ?? 0}
+                        {committee.criteriaCount ?? "—"}
                       </div>
                     </td>
 

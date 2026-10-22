@@ -19,7 +19,7 @@ const mapCommittee = (committee) => ({
   chairperson: committee.chairperson,
   status: committee.status,
   memberCount: committee.member_count ?? committee.memberCount ?? 0,
-  criteriaCount: committee.criteria_count ?? committee.criteriaCount ?? 0,
+  criteriaCount: committee.criteria_count ?? committee.criteriaCount ?? null,
   createdAt: committee.created_at ?? committee.createdAt,
   institutionId: committee.institution_id ?? committee.institutionId,
 });

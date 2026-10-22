@@ -5,6 +5,7 @@ from app.auth.dependencies import get_db, get_current_user
 from app.auth.registration_authority import REVIEWER, get_role_name
 from app.models import User, Submission, Document, Review
 from app.services.report_service import REVIEWABLE_STATUSES
+from app.submission.routes import get_submissions
 
 router = APIRouter(
     prefix="/reviewer",
@@ -30,21 +31,31 @@ def reviewer_dashboard(
         )
 
     inst_id = current_user.institution_id
-    sub_query = db.query(Submission)
     doc_query = db.query(Document)
 
-    if inst_id:
-        sub_query = sub_query.filter(Submission.institution_id == inst_id)
-        doc_query = doc_query.filter(Document.institution_id == inst_id)
+    doc_query = doc_query.filter(Document.institution_id == inst_id)
 
-    pending_query = sub_query.filter(Submission.status.in_(REVIEWABLE_STATUSES))
-    pending_reviews = pending_query.count()
+    visible_submissions = get_submissions(
+        current_user=current_user,
+        db=db,
+    )
+    pending_submissions = [
+        submission
+        for submission in visible_submissions
+        if submission.status in REVIEWABLE_STATUSES
+    ]
+    pending_reviews = len(pending_submissions)
     completed_reviews = db.query(Review).filter(
-        Review.reviewer_id == current_user.id
+        Review.reviewer_id == current_user.id,
+        Review.submission_id.in_(
+            db.query(Submission.id).filter(
+                Submission.institution_id == inst_id
+            )
+        ),
     ).count()
 
     pending_submission_ids = [
-        row[0] for row in pending_query.with_entities(Submission.id).all()
+        submission.id for submission in pending_submissions
     ]
     if pending_submission_ids:
         evidence_items = doc_query.filter(

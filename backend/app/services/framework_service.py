@@ -1305,40 +1305,19 @@ def official_mapped_metric_rows(db: Session, framework: NaacFramework):
         .all()
     )
 
-
 def apply_framework_to_cycle(
     db: Session,
     cycle,
     framework: NaacFramework,
     actor_user_id: int | None,
 ) -> None:
-    from app.models.cycle_applicable_metric import CycleApplicableMetric
+    """Bind a framework without automatically configuring applicability.
 
+    Official cycle applicability must be explicitly configured using
+    validated operational metric IDs. Existing applicability rows are
+    preserved; legacy mappings are never copied into a new cycle.
+    """
     cycle.framework_id = framework.id
-
-    existing = (
-        db.query(CycleApplicableMetric.id)
-        .filter(CycleApplicableMetric.cycle_id == cycle.id)
-        .first()
-    )
-
-    if existing:
-        return
-
-    # Do not seed cycle_applicable_metrics from official operational
-    # metrics or from working-catalogue code matches. Retrieval uses
-    # operational_metric_id. maps_to_metric_id stays unused.
-    now = datetime.utcnow()
-
-    for row in official_mapped_metric_rows(db, framework):
-        db.add(
-            CycleApplicableMetric(
-                cycle_id=cycle.id,
-                metric_id=row.maps_to_metric_id,
-                required=bool(row.required_default),
-                created_at=now,
-            )
-        )
 
 
 def copy_profile_fields(source, target) -> None:

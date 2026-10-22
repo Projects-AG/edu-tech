@@ -92,7 +92,7 @@ const groupCatalogMetrics = (criteria, sections, metrics) => {
 export const AccreditationCycles = () => {
   const { user, activeRole } = useAuth();
   const role = normalizeRole(activeRole || user?.role);
-  const canManage = [ROLES.NAAC_COORDINATOR, ROLES.ADMIN].includes(role);
+  const canManage = role === ROLES.NAAC_COORDINATOR;
 
   const [cycles, setCycles] = useState([]);
   const [institutions, setInstitutions] = useState([]);
@@ -477,6 +477,7 @@ export const AccreditationCycles = () => {
           metrics: [],
         };
       }
+
       groups[key].metrics.push(item);
     });
     return Object.values(groups);

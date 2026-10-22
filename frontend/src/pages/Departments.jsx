@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, X } from "lucide-react";
+import { Eye, Plus, X } from "lucide-react";
 import departmentService from "../services/departmentService";
 import DataTable from "../components/common/DataTable";
 import PageHeader from "../components/common/PageHeader";
@@ -24,6 +24,7 @@ export const Departments = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [viewingDepartment, setViewingDepartment] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
@@ -43,6 +44,7 @@ export const Departments = () => {
         code: dept.code || "-",
         name: dept.name || "-",
         head: dept.head_name || "-",
+        faculty_id: dept.faculty_id ?? null,
         institution_id: dept.institution_id,
         head_name: dept.head_name || "",
       }));
@@ -155,12 +157,38 @@ export const Departments = () => {
   const columns = [
     { title: "Code", dataIndex: "code" },
     { title: "Department Name", dataIndex: "name" },
+    {
+      title: "Faculty Allocation",
+      dataIndex: "faculty_id",
+      render: (value) => value == null ? "Unassigned" : `Faculty #${value}`,
+    },
     { title: "Department Head", dataIndex: "head" },
     {
       title: "Actions",
       dataIndex: "id",
       render: (_value, department) => (
         <div style={{ display: "flex", gap: "8px" }}>
+          <PermissionGuard permission={PERMISSIONS.DEPARTMENTS_VIEW}>
+            <button
+              type="button"
+              onClick={() => setViewingDepartment(department)}
+              style={{
+                padding: "4px 8px",
+                background: "#f8fafc",
+                border: "1px solid #cbd5e1",
+                color: "#475569",
+                borderRadius: "4px",
+                fontSize: "11px",
+                fontWeight: "600",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+            >
+              <Eye size={13} /> Details
+            </button>
+          </PermissionGuard>
           <PermissionGuard permission={PERMISSIONS.DEPARTMENTS_MANAGE}>
             <button
               type="button"
@@ -232,6 +260,23 @@ export const Departments = () => {
           }}
         >
           {error}
+          <button
+            type="button"
+            onClick={loadData}
+            style={{
+              display: "block",
+              marginTop: "10px",
+              padding: "7px 12px",
+              border: "1px solid #fecaca",
+              borderRadius: "6px",
+              background: "#ffffff",
+              color: "#991b1b",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Retry
+          </button>
         </div>
       )}
 
@@ -239,6 +284,10 @@ export const Departments = () => {
         {loading ? (
           <div style={{ padding: "24px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
             Loading departments...
+          </div>
+        ) : error ? (
+          <div style={{ padding: "24px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+            Department records are unavailable until the request succeeds.
           </div>
         ) : (
           <DataTable
@@ -249,6 +298,91 @@ export const Departments = () => {
           />
         )}
       </div>
+
+      {viewingDepartment && (
+        <div
+          role="presentation"
+          onClick={() => setViewingDepartment(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "20px",
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="department-details-title"
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "520px",
+              background: "#ffffff",
+              borderRadius: "16px",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.20)",
+            }}
+          >
+            <div
+              style={{
+                padding: "22px 26px",
+                borderBottom: "1px solid #e5e7eb",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <h2 id="department-details-title" style={{ margin: 0, fontSize: "20px", color: "#172554" }}>
+                Department Details
+              </h2>
+              <button
+                type="button"
+                onClick={() => setViewingDepartment(null)}
+                aria-label="Close department details"
+                style={{
+                  border: "none",
+                  background: "#f1f5f9",
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <dl style={{ margin: 0, padding: "8px 26px 26px" }}>
+              {[
+                ["Department Name", viewingDepartment.name],
+                ["Code", viewingDepartment.code],
+                ["Department Head", viewingDepartment.head_name || "-"],
+                ["Department ID", viewingDepartment.id],
+                ["Institution ID", viewingDepartment.institution_id || "-"],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  style={{
+                    padding: "14px 0",
+                    borderBottom: "1px solid #f1f5f9",
+                  }}
+                >
+                  <dt style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "5px" }}>
+                    {label}
+                  </dt>
+                  <dd style={{ margin: 0, fontSize: "14px", color: "#1e293b" }}>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        </div>
+      )}
 
       {showModal && (
         <div
