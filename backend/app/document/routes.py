@@ -1,5 +1,8 @@
 import mimetypes
+import os
+from io import BytesIO
 from pathlib import Path
+from urllib.parse import quote
 from uuid import uuid4
 from typing import List, Optional
 
@@ -12,7 +15,7 @@ from fastapi import (
     File,
     Form,
 )
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import (
@@ -38,6 +41,16 @@ from app.services.document_service import (
     create_document_record,
     replace_document_file,
 )
+
+try:
+    import boto3
+    from botocore.exceptions import BotoCoreError, ClientError
+    _BOTO3_AVAILABLE = True
+except ImportError:
+    boto3 = None
+    BotoCoreError = Exception
+    ClientError = Exception
+    _BOTO3_AVAILABLE = False
 
 
 router = APIRouter(
@@ -154,6 +167,164 @@ ALLOWED_EXTENSIONS = {
     "jpeg",
     "png",
 }
+
+# ============================================================
+# SUPABASE STORAGE CLIENT AND HELPERS
+# ============================================================
+
+# Initialize boto3 S3-compatible client at module level.
+# If storage configuration is incomplete, the client will be None
+# and all storage operations fall back to local filesystem behavior.
+_s3_client = None
+_s3_bucket = None
+
+try:
+    from app.core.config import settings as _storage_settings
+    _s3_bucket = _storage_settings.storage_bucket
+    if (
+        _BOTO3_AVAILABLE
+        and _storage_settings.storage_endpoint
+        and _storage_settings.storage_access_key
+        and _storage_settings.storage_secret_key
+    ):
+        _s3_client = boto3.client(
+            "s3",
+            endpoint_url=_storage_settings.storage_endpoint,
+            aws_access_key_id=_storage_settings.storage_access_key,
+            aws_secret_access_key=_storage_settings.storage_secret_key,
+        )
+except Exception:
+    _s3_client = None
+    _s3_bucket = None
+
+
+def _get_s3_client():
+    """Return the module-level boto3 S3 client, or None."""
+    return _s3_client
+
+
+def _get_s3_bucket():
+    """Return the configured Supabase bucket name."""
+    return _s3_bucket
+
+
+def is_legacy_local_path(file_path: str) -> bool:
+    """Return True if file_path uses the legacy local filesystem format."""
+    return file_path.startswith("/uploads/evidence/")
+
+
+def _is_production_environment() -> bool:
+    """Return True if running in production."""
+    env = os.getenv("ENVIRONMENT", "development").strip().lower()
+    return env in {"production", "prod"}
+
+
+def _storage_configured_for_production() -> bool:
+    """Check if storage is correctly configured for production use.
+
+    Returns False if:
+    - boto3 is not available
+    - s3 client is None
+    - endpoint is localhost/default
+    - bucket is empty
+    """
+    if not _BOTO3_AVAILABLE:
+        return False
+    client = _get_s3_client()
+    bucket = _get_s3_bucket()
+    if client is None or not bucket:
+        return False
+    # Check endpoint is not localhost/default
+    endpoint = os.getenv("STORAGE_ENDPOINT", "").strip()
+    if not endpoint:
+        endpoint = "http://localhost:9000"  # default from config
+    lower = endpoint.lower()
+    if "localhost" in lower or "127.0.0.1" in lower:
+        return False
+    return True
+
+
+def _safe_content_disposition(filename: str, inline: bool = True) -> str:
+    """Construct a safe Content-Disposition header value.
+
+    Prevents CR/LF header injection and handles quotes and non-ASCII.
+    """
+    # Remove CR/LF to prevent header injection
+    safe = filename.replace("\r", "").replace("\n", "")
+    # Escape double quotes for the filename parameter
+    escaped = safe.replace('"', '\\"')
+    # RFC 5987 percent-encoding for the filename* parameter
+    encoded = quote(safe, safe="")
+    disposition = "inline" if inline else "attachment"
+    return f'{disposition}; filename="{escaped}"; filename*=UTF-8\'\'{encoded}'
+
+
+def upload_to_supabase(file_obj, key: str) -> None:
+    """Upload a file-like object to Supabase Storage (private bucket)."""
+    client = _get_s3_client()
+    bucket = _get_s3_bucket()
+    if client is None or bucket is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Supabase Storage is not configured.",
+        )
+    try:
+        client.upload_fileobj(file_obj, bucket, key)
+    except (BotoCoreError, ClientError):
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to upload evidence to Supabase Storage.",
+        )
+
+
+def read_from_supabase(key: str) -> bytes:
+    """Download raw bytes from Supabase Storage."""
+    client = _get_s3_client()
+    bucket = _get_s3_bucket()
+    if client is None or bucket is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Supabase Storage is not configured.",
+        )
+    try:
+        response = client.get_object(Bucket=bucket, Key=key)
+        return response["Body"].read()
+    except (BotoCoreError, ClientError):
+        raise HTTPException(
+            status_code=404,
+            detail="Evidence file not found in Supabase Storage.",
+        )
+
+
+def delete_from_supabase(key: str) -> None:
+    """Delete an object from Supabase Storage. Does not raise."""
+    client = _get_s3_client()
+    bucket = _get_s3_bucket()
+    if client is None or bucket is None:
+        return
+    try:
+        client.delete_object(Bucket=bucket, Key=key)
+    except (BotoCoreError, ClientError):
+        logger.warning(
+            "Failed to delete Supabase object (may already be gone): %s", key
+        )
+
+
+def _supabase_media_type(document: Document, key: str) -> str:
+    """Resolve media type from document metadata or Supabase key extension."""
+    file_type = (document.file_type or "").strip()
+    if "/" in file_type:
+        return file_type
+    guessed, _ = mimetypes.guess_type(key)
+    return guessed or "application/octet-stream"
+
+
+def _supabase_filename(document: Document, key: str) -> str:
+    """Resolve filename from document title or Supabase key's last segment."""
+    name = (document.title or "").strip() or key.split("/")[-1]
+    if not Path(name).suffix and "." in key.split("/")[-1]:
+        name = f"{name}{Path(key.split('/')[-1]).suffix}"
+    return name
 
 
 # ============================================================
@@ -473,50 +644,47 @@ async def upload_document(
         else "general"
     )
 
-    upload_dir = (
-        UPLOAD_ROOT
-        / folder_name
-    )
-
-    upload_dir.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
     stored_name = (
         f"{uuid4().hex}.{extension}"
     )
 
-    destination = (
-        upload_dir / stored_name
-    )
+    # Read file content for size computation and storage upload.
+    file_bytes = await file.read()
+    file_size = len(file_bytes)
 
-    file_size = 0
+    # Determine storage backend: Supabase (preferred) or local fallback.
+    if _is_production_environment() and not _storage_configured_for_production():
+        raise HTTPException(
+            status_code=500,
+            detail="Supabase Storage is not configured for production.",
+        )
 
-    with destination.open("wb") as buffer:
-
-        while True:
-
-            chunk = await file.read(
-                1024 * 1024
+    if _s3_client is not None:
+        # New uploads use Supabase Storage bucket-relative keys
+        # (no leading slash).
+        key = f"evidence/{folder_name}/{stored_name}"
+        try:
+            upload_to_supabase(BytesIO(file_bytes), key)
+        except HTTPException:
+            raise
+        relative_path = key
+    else:
+        if _is_production_environment():
+            raise HTTPException(
+                status_code=500,
+                detail="Supabase Storage is not configured for production.",
             )
-
-            if not chunk:
-                break
-
-            buffer.write(chunk)
-
-            file_size += len(chunk)
-
-    # --------------------------------------------------------
-    # Create database record
-    # --------------------------------------------------------
-
-    relative_path = (
-        f"/uploads/evidence/"
-        f"{folder_name}/"
-        f"{stored_name}"
-    )
+        # Legacy local fallback — permitted only in development.
+        upload_dir = UPLOAD_ROOT / folder_name
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        destination = upload_dir / stored_name
+        with destination.open("wb") as buffer:
+            buffer.write(file_bytes)
+        relative_path = (
+            f"/uploads/evidence/"
+            f"{folder_name}/"
+            f"{stored_name}"
+        )
 
     document = create_document_record(
         db=db,
@@ -729,21 +897,35 @@ def preview_document(
         db
     )
 
-    file_path = resolve_evidence_file(
-        document
-    )
+    stored = document.file_path or ""
 
-    return FileResponse(
-        path=str(file_path),
-        filename=resolve_evidence_filename(
-            document,
-            file_path
-        ),
-        media_type=resolve_media_type(
-            document,
-            file_path
-        ),
-        content_disposition_type="inline",
+    # Legacy local file — use existing FileResponse logic.
+    if is_legacy_local_path(stored):
+        file_path = resolve_evidence_file(document)
+        return FileResponse(
+            path=str(file_path),
+            filename=resolve_evidence_filename(
+                document,
+                file_path
+            ),
+            media_type=resolve_media_type(
+                document,
+                file_path
+            ),
+            content_disposition_type="inline",
+        )
+
+    # Supabase Storage object — download bytes and stream.
+    file_bytes = read_from_supabase(stored)
+    return Response(
+        content=file_bytes,
+        media_type=_supabase_media_type(document, stored),
+        headers={
+            "Content-Disposition": _safe_content_disposition(
+                _supabase_filename(document, stored),
+                inline=True,
+            )
+        },
     )
 
 
@@ -768,21 +950,35 @@ def download_document(
         db
     )
 
-    file_path = resolve_evidence_file(
-        document
-    )
+    stored = document.file_path or ""
 
-    return FileResponse(
-        path=str(file_path),
-        filename=resolve_evidence_filename(
-            document,
-            file_path
-        ),
-        media_type=resolve_media_type(
-            document,
-            file_path
-        ),
-        content_disposition_type="attachment",
+    # Legacy local file — use existing FileResponse logic.
+    if is_legacy_local_path(stored):
+        file_path = resolve_evidence_file(document)
+        return FileResponse(
+            path=str(file_path),
+            filename=resolve_evidence_filename(
+                document,
+                file_path
+            ),
+            media_type=resolve_media_type(
+                document,
+                file_path
+            ),
+            content_disposition_type="attachment",
+        )
+
+    # Supabase Storage object — download bytes and stream.
+    file_bytes = read_from_supabase(stored)
+    return Response(
+        content=file_bytes,
+        media_type=_supabase_media_type(document, stored),
+        headers={
+            "Content-Disposition": _safe_content_disposition(
+                _supabase_filename(document, stored),
+                inline=False,
+            )
+        },
     )
 
 
@@ -870,57 +1066,69 @@ async def replace_document(
         else "general"
     )
 
-    upload_dir = (
-        UPLOAD_ROOT
-        / folder_name
-    )
-
-    upload_dir.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    stored_name = (
+    new_stored_name = (
         f"{uuid4().hex}.{extension}"
     )
 
-    destination = (
-        upload_dir / stored_name
-    )
+    # Read file content for size computation and storage upload.
+    file_bytes = await file.read()
+    file_size = len(file_bytes)
 
-    file_size = 0
+    # Production safety check — do not silently fall back to local.
+    if _is_production_environment() and not _storage_configured_for_production():
+        raise HTTPException(
+            status_code=500,
+            detail="Supabase Storage is not configured for production.",
+        )
 
-    with destination.open("wb") as buffer:
-
-        while True:
-
-            chunk = await file.read(
-                1024 * 1024
+    # Determine new storage key.
+    if _s3_client is not None:
+        new_key = f"evidence/{folder_name}/{new_stored_name}"
+    else:
+        if _is_production_environment():
+            raise HTTPException(
+                status_code=500,
+                detail="Supabase Storage is not configured for production.",
             )
+        # Legacy local fallback — permitted only in development.
+        upload_dir = UPLOAD_ROOT / folder_name
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        destination = upload_dir / new_stored_name
+        with destination.open("wb") as buffer:
+            buffer.write(file_bytes)
+        new_key = f"/uploads/evidence/{folder_name}/{new_stored_name}"
 
-            if not chunk:
-                break
+    # 1. Upload new object to Supabase Storage (if configured).
+    if _s3_client is not None:
+        try:
+            upload_to_supabase(BytesIO(file_bytes), new_key)
+        except HTTPException:
+            raise
 
-            buffer.write(chunk)
+    # 2. Update database reference (Document + new DocumentVersion).
+    #    If this fails, clean up the newly uploaded Supabase object.
+    try:
+        updated_document = replace_document_file(
+            db=db,
+            user=current_user,
+            document_id=document_id,
+            file_path=new_key,
+            file_type=(
+                file.content_type
+                or extension
+            ),
+            file_size=file_size,
+        )
+    except Exception:
+        # DB update failed — attempt to clean up the newly uploaded
+        # Supabase object without touching the old file.
+        if _s3_client is not None:
+            delete_from_supabase(new_key)
+        raise
 
-            file_size += len(chunk)
-
-    relative_path = (
-        f"/uploads/evidence/"
-        f"{folder_name}/"
-        f"{stored_name}"
-    )
-
-    updated_document = replace_document_file(
-        db=db,
-        user=current_user,
-        document_id=document_id,
-        file_path=relative_path,
-        file_type=(
-            file.content_type
-            or extension
-        ),
-        file_size=file_size,
-    )
+    # 3. DB update succeeded. Do NOT delete the old Supabase object,
+    #    because historical DocumentVersion records may still reference it.
+    #    (The old key remains in the bucket; only the Document's file_path
+    #     and the current DocumentVersion point to the new key.)
 
     return updated_document
