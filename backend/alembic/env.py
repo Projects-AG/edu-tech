@@ -54,6 +54,32 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def _normalize_postgresql_url(database_url: str) -> str:
+    """Normalize a PostgreSQL URL to use the psycopg3 dialect.
+
+    - ``postgres://...`` → ``postgresql+psycopg://...``
+    - ``postgresql://...`` → ``postgresql+psycopg://...``
+    - ``postgresql+psycopg2://...`` → ``postgresql+psycopg://...``
+    - ``postgresql+psycopg://...`` → unchanged
+    - Other ``postgresql+...`` dialects are rejected (only psycopg3 supported).
+    """
+    if database_url.startswith("postgres://"):
+        database_url = "postgresql://" + database_url[len("postgres://"):]
+
+    if database_url.startswith("postgresql://"):
+        database_url = "postgresql+psycopg://" + database_url[len("postgresql://"):]
+    elif database_url.startswith("postgresql+psycopg2://"):
+        database_url = "postgresql+psycopg://" + database_url[len("postgresql+psycopg2://"):]
+    elif not database_url.startswith("postgresql+psycopg://"):
+        # Reject other postgresql+ dialects (asyncpg, pg8000, etc.)
+        raise RuntimeError(
+            "Alembic DATABASE_URL must use the psycopg3 dialect "
+            "(postgresql+psycopg://)."
+        )
+
+    return database_url
+
+
 def get_alembic_database_url() -> str:
     database_url = os.getenv("DATABASE_URL")
 
@@ -63,11 +89,7 @@ def get_alembic_database_url() -> str:
         )
 
     database_url = database_url.strip()
-
-    # Render/Supabase hand out postgres:// URLs; SQLAlchemy wants the
-    # postgresql:// prefix. Never log or echo the URL itself.
-    if database_url.startswith("postgres://"):
-        database_url = "postgresql://" + database_url[len("postgres://"):]
+    database_url = _normalize_postgresql_url(database_url)
 
     if not database_url.startswith(("postgresql://", "postgresql+")):
         raise RuntimeError(

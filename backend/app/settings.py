@@ -37,6 +37,32 @@ def _is_production() -> bool:
     return ENVIRONMENT in _PRODUCTION_ENVIRONMENTS
 
 
+def _normalize_postgresql_url(database_url: str) -> str:
+    """Normalize a PostgreSQL URL to use the psycopg3 dialect.
+
+    - ``postgres://...`` → ``postgresql+psycopg://...``
+    - ``postgresql://...`` → ``postgresql+psycopg://...``
+    - ``postgresql+psycopg2://...`` → ``postgresql+psycopg://...``
+    - ``postgresql+psycopg://...`` → unchanged
+    - Other ``postgresql+...`` dialects are rejected (only psycopg3 supported).
+    """
+    if database_url.startswith("postgres://"):
+        database_url = "postgresql://" + database_url[len("postgres://"):]
+
+    if database_url.startswith("postgresql://"):
+        database_url = "postgresql+psycopg://" + database_url[len("postgresql://"):]
+    elif database_url.startswith("postgresql+psycopg2://"):
+        database_url = "postgresql+psycopg://" + database_url[len("postgresql+psycopg2://"):]
+    elif not database_url.startswith("postgresql+psycopg://"):
+        # Reject other postgresql+ dialects (asyncpg, pg8000, etc.)
+        raise RuntimeError(
+            "DATABASE_URL must use the psycopg3 dialect "
+            "(postgresql+psycopg://)."
+        )
+
+    return database_url
+
+
 def _require_database_url() -> str:
     database_url = os.getenv("DATABASE_URL", "").strip()
 
@@ -46,9 +72,7 @@ def _require_database_url() -> str:
             "SQLite fallback is disabled."
         )
 
-    # Render/Supabase may provide the legacy postgres:// prefix.
-    if database_url.startswith("postgres://"):
-        database_url = "postgresql://" + database_url[len("postgres://"):]
+    database_url = _normalize_postgresql_url(database_url)
 
     url = make_url(database_url)
     if url.get_backend_name() != "postgresql":
