@@ -9,6 +9,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 
 from app.db.database import Base
@@ -56,6 +57,7 @@ class CycleApplicableMetric(Base):
         Boolean,
         nullable=False,
         default=True,
+        server_default=text("true"),
     )
 
     exception_type = Column(

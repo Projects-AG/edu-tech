@@ -1,11 +1,35 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import CheckConstraint, Column, Integer, String, DateTime, ForeignKey
 from app.db.database import Base
+
+CYCLE_MODE_INTERNAL_PREPARATION = "INTERNAL_PREPARATION"
+
+PREPARATION_STATUSES = (
+    "Preparation Draft",
+    "Preparation Open",
+    "Preparation Finalized",
+    "Preparation Archived",
+)
 
 
 class AccreditationCycle(Base):
     __tablename__ = "accreditation_cycles"
+    __table_args__ = (
+        CheckConstraint(
+            "cycle_mode IS NULL OR cycle_mode = 'INTERNAL_PREPARATION'",
+            name="ck_accreditation_cycles_cycle_mode_values",
+        ),
+        CheckConstraint(
+            "(cycle_mode = 'INTERNAL_PREPARATION' "
+            "AND status IN ('Preparation Draft', 'Preparation Open', "
+            "'Preparation Finalized', 'Preparation Archived')) "
+            "OR (cycle_mode IS NULL "
+            "AND status NOT IN ('Preparation Draft', 'Preparation Open', "
+            "'Preparation Finalized', 'Preparation Archived'))",
+            name="ck_accreditation_cycles_cycle_mode_status",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
 
@@ -47,6 +71,14 @@ class AccreditationCycle(Base):
     # Optional description
     description = Column(
         String(500),
+        nullable=True
+    )
+
+    # NULL for ordinary (official) cycles; INTERNAL_PREPARATION marks a
+    # rehearsal cycle that uses the working catalogue and preparation
+    # statuses. See app.services.cycle_mode.
+    cycle_mode = Column(
+        String(40),
         nullable=True
     )
 

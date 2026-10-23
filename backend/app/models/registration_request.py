@@ -39,7 +39,7 @@ class RegistrationRequest(Base):
 
     institution_id = Column(
         Integer,
-        ForeignKey("institutions.id"),
+        ForeignKey("institutions.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -51,7 +51,7 @@ class RegistrationRequest(Base):
 
     department_id = Column(
         Integer,
-        ForeignKey("departments.id"),
+        ForeignKey("departments.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )

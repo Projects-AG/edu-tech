@@ -1,4 +1,5 @@
 import mimetypes
+import logging
 import os
 from io import BytesIO
 from pathlib import Path
@@ -57,6 +58,8 @@ router = APIRouter(
     prefix="/documents",
     tags=["Documents & Evidence"]
 )
+
+logger = logging.getLogger("eduverse.documents")
 
 
 # ============================================================
@@ -173,29 +176,38 @@ ALLOWED_EXTENSIONS = {
 # ============================================================
 
 # Initialize boto3 S3-compatible client at module level.
-# If storage configuration is incomplete, the client will be None
-# and all storage operations fall back to local filesystem behavior.
+# If storage configuration is incomplete, the client is None and uploads
+# rely on the explicit local fallback in development only.
 _s3_client = None
 _s3_bucket = None
 
 try:
-    from app.core.config import settings as _storage_settings
-    _s3_bucket = _storage_settings.storage_bucket
-    if (
-        _BOTO3_AVAILABLE
-        and _storage_settings.storage_endpoint
-        and _storage_settings.storage_access_key
-        and _storage_settings.storage_secret_key
-    ):
+    from app.settings import (
+        STORAGE_ACCESS_KEY,
+        STORAGE_BUCKET,
+        STORAGE_ENDPOINT,
+        STORAGE_SECRET_KEY,
+        missing_storage_settings,
+        storage_is_configured,
+    )
+
+    _s3_bucket = STORAGE_BUCKET or None
+    if _BOTO3_AVAILABLE and storage_is_configured():
         _s3_client = boto3.client(
             "s3",
-            endpoint_url=_storage_settings.storage_endpoint,
-            aws_access_key_id=_storage_settings.storage_access_key,
-            aws_secret_access_key=_storage_settings.storage_secret_key,
+            endpoint_url=STORAGE_ENDPOINT,
+            aws_access_key_id=STORAGE_ACCESS_KEY,
+            aws_secret_access_key=STORAGE_SECRET_KEY,
         )
 except Exception:
     _s3_client = None
     _s3_bucket = None
+
+    def missing_storage_settings() -> list[str]:
+        return ["storage configuration"]
+
+    def storage_is_configured() -> bool:
+        return False
 
 
 def _get_s3_client():
@@ -209,8 +221,14 @@ def _get_s3_bucket():
 
 
 def is_legacy_local_path(file_path: str) -> bool:
-    """Return True if file_path uses the legacy local filesystem format."""
-    return file_path.startswith("/uploads/evidence/")
+    """Return True if file_path uses a legacy local filesystem format.
+
+    Both ``/uploads/evidence/...`` (servable) and older ``/uploads/...``
+    paths are legacy. The latter are reported explicitly by
+    :func:`resolve_evidence_file` instead of being mistaken for a bucket key.
+    """
+    normalized = (file_path or "").replace("\\", "/").strip()
+    return normalized.startswith("/uploads/") or normalized.startswith("uploads/")
 
 
 def _is_production_environment() -> bool:
@@ -224,21 +242,18 @@ def _storage_configured_for_production() -> bool:
 
     Returns False if:
     - boto3 is not available
+    - required environment variables are missing
     - s3 client is None
     - endpoint is localhost/default
     - bucket is empty
     """
-    if not _BOTO3_AVAILABLE:
+    if not _BOTO3_AVAILABLE or not storage_is_configured():
         return False
     client = _get_s3_client()
     bucket = _get_s3_bucket()
     if client is None or not bucket:
         return False
-    # Check endpoint is not localhost/default
-    endpoint = os.getenv("STORAGE_ENDPOINT", "").strip()
-    if not endpoint:
-        endpoint = "http://localhost:9000"  # default from config
-    lower = endpoint.lower()
+    lower = STORAGE_ENDPOINT.lower()
     if "localhost" in lower or "127.0.0.1" in lower:
         return False
     return True
@@ -264,10 +279,14 @@ def upload_to_supabase(file_obj, key: str) -> None:
     client = _get_s3_client()
     bucket = _get_s3_bucket()
     if client is None or bucket is None:
-        raise HTTPException(
-            status_code=500,
-            detail="Supabase Storage is not configured.",
-        )
+        missing = missing_storage_settings()
+        detail = "Supabase Storage is not configured."
+        if missing:
+            detail = (
+                "Supabase Storage is not configured. Missing setting(s): "
+                + ", ".join(missing)
+            )
+        raise HTTPException(status_code=500, detail=detail)
     try:
         client.upload_fileobj(file_obj, bucket, key)
     except (BotoCoreError, ClientError):
@@ -797,6 +816,17 @@ def resolve_evidence_file(
             status_code=404,
             detail=(
                 "Evidence file not found on server"
+            )
+        )
+
+    normalized = stored_path.replace("\\", "/")
+    if not normalized.startswith(("/uploads/evidence/", "uploads/evidence/")):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "This evidence uses a legacy local path outside "
+                "uploads/evidence and is not available. Re-upload the "
+                "file or migrate it with scripts/transfer_evidence.py."
             )
         )
 

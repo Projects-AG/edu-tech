@@ -16,7 +16,7 @@ class Faculty(Base):
 
     institution_id = Column(
         Integer,
-        ForeignKey("institutions.id"),
+        ForeignKey("institutions.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )

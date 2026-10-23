@@ -1,21 +1,13 @@
+"""Compatibility shim for the legacy ``backend.app.*`` module stack.
+
+The running FastAPI application uses :mod:`app.db.database` exclusively.
+This module is kept only so old imports do not create a second engine or a
+second declarative ``Base``; it re-exports the live one.
+"""
+
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
-
-from backend.app.core.config import settings
-
-engine = create_engine(
-    settings.database_url,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-class Base(DeclarativeBase):
-    pass
+from app.db.database import Base, SessionLocal, engine
 
 
 def get_db() -> Generator:

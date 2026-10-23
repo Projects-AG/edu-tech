@@ -27,6 +27,7 @@ backend/.env
 *.db
 *.sqlite
 *.sqlite3
+backend/backups/
 
 # =========================
 # Node / React / Vite

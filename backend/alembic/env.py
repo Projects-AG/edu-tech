@@ -1,5 +1,6 @@
 from logging.config import fileConfig
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -42,7 +43,8 @@ from app.models import (
     AuditLog,
 )
 
-load_dotenv()
+_BACKEND_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(_BACKEND_DIR / ".env")
 
 config = context.config
 
@@ -60,10 +62,17 @@ def get_alembic_database_url() -> str:
             "DATABASE_URL is not set. Alembic will not fall back to SQLite."
         )
 
-    if "postgresql" not in database_url:
+    database_url = database_url.strip()
+
+    # Render/Supabase hand out postgres:// URLs; SQLAlchemy wants the
+    # postgresql:// prefix. Never log or echo the URL itself.
+    if database_url.startswith("postgres://"):
+        database_url = "postgresql://" + database_url[len("postgres://"):]
+
+    if not database_url.startswith(("postgresql://", "postgresql+")):
         raise RuntimeError(
             "Alembic migrations must use PostgreSQL. "
-            f"Refusing non-PostgreSQL DATABASE_URL dialect."
+            "Refusing non-PostgreSQL DATABASE_URL dialect."
         )
 
     return database_url
@@ -117,6 +126,9 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            compare_type=True,
+            compare_server_default=True,
+            include_schemas=False,
         )
 
         with context.begin_transaction():

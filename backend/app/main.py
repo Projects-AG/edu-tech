@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.settings import CORS_ORIGINS
+from app.settings import CORS_ORIGINS, validate_storage_configuration
 
 from app.auth.routes import router as auth_router
 from app.institution.routes import router as institution_router
@@ -46,6 +46,10 @@ from app.audit.routes import router as audit_router
 
 
 logger = logging.getLogger("eduverse")
+
+# Fail fast in production if evidence storage is missing; development keeps
+# the explicit local fallback.
+validate_storage_configuration()
 
 app = FastAPI(
     title="EduVerse NAAC API",

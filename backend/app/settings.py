@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+from sqlalchemy.engine import make_url
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
@@ -45,7 +46,12 @@ def _require_database_url() -> str:
             "SQLite fallback is disabled."
         )
 
-    if "postgresql" not in database_url:
+    # Render/Supabase may provide the legacy postgres:// prefix.
+    if database_url.startswith("postgres://"):
+        database_url = "postgresql://" + database_url[len("postgres://"):]
+
+    url = make_url(database_url)
+    if url.get_backend_name() != "postgresql":
         raise RuntimeError(
             "DATABASE_URL must use PostgreSQL. "
             "SQLite and other dialects are not allowed."
@@ -126,3 +132,55 @@ JWT_SECRET = _require_jwt_secret()
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256").strip() or "HS256"
 JWT_ACCESS_EXPIRE_MINUTES = _expire_minutes()
 CORS_ORIGINS = get_cors_origins()
+
+
+# ---------------------------------------------------------------------------
+# Supabase Storage (S3-compatible, private bucket)
+# ---------------------------------------------------------------------------
+
+DEFAULT_STORAGE_BUCKET = "naac-evidence"
+
+STORAGE_ENDPOINT = os.getenv("STORAGE_ENDPOINT", "").strip()
+STORAGE_BUCKET = (
+    os.getenv("STORAGE_BUCKET", DEFAULT_STORAGE_BUCKET).strip()
+    or DEFAULT_STORAGE_BUCKET
+)
+STORAGE_ACCESS_KEY = os.getenv("STORAGE_ACCESS_KEY", "").strip()
+STORAGE_SECRET_KEY = os.getenv("STORAGE_SECRET_KEY", "").strip()
+
+
+def missing_storage_settings() -> list[str]:
+    """Return the names of required storage settings that are not set.
+
+    Only variable names are returned, never values, so the result is safe
+    to log or display in an API error.
+    """
+    required = {
+        "STORAGE_ENDPOINT": STORAGE_ENDPOINT,
+        "STORAGE_BUCKET": STORAGE_BUCKET,
+        "STORAGE_ACCESS_KEY": STORAGE_ACCESS_KEY,
+        "STORAGE_SECRET_KEY": STORAGE_SECRET_KEY,
+    }
+    return [name for name, value in required.items() if not str(value).strip()]
+
+
+def storage_is_configured() -> bool:
+    return not missing_storage_settings()
+
+
+def validate_storage_configuration() -> None:
+    """Fail fast in production when Supabase Storage is not configured.
+
+    Development keeps the explicit local-file fallback so the app remains
+    usable without cloud credentials. Production uploads must never silently
+    write to a local directory that disappears on redeploy.
+    """
+    if not _is_production():
+        return
+
+    missing = missing_storage_settings()
+    if missing:
+        raise RuntimeError(
+            "Supabase Storage is not configured for production. "
+            "Missing environment variables: " + ", ".join(missing)
+        )

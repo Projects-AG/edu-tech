@@ -23,7 +23,7 @@ class Department(Base):
 
     faculty_id = Column(
         Integer,
-        ForeignKey("faculties.id"),
+        ForeignKey("faculties.id", ondelete="SET NULL"),
         nullable=True,
         index=True
     )
